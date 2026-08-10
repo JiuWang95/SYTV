@@ -224,7 +224,35 @@ function setupLongPressSpeedControl() {
 
     // 显示倍速提示
     function showSpeedHint(speed) {
-        showShortcutHint(`${speed}倍速`, 'right');
+        const hintElement = document.getElementById('shortcutHint');
+        const textElement = document.getElementById('shortcutText');
+        const iconElement = document.getElementById('shortcutIcon');
+
+        // 清除之前的超时
+        if (shortcutHintTimeout) {
+            clearTimeout(shortcutHintTimeout);
+        }
+
+        // 添加倍速专用类，设置为小字透明样式
+        hintElement.classList.add('speed-hint');
+        iconElement.style.display = 'none';
+        textElement.textContent = `${speed}倍速`;
+        hintElement.classList.add('show');
+
+        // 长按期间保持显示，松开后恢复1倍速时提示1秒后隐藏
+        shortcutHintTimeout = setTimeout(() => {
+            hintElement.classList.remove('show');
+            // 延迟移除专用类，等待淡出动画完成
+            setTimeout(() => {
+                hintElement.classList.remove('speed-hint');
+                iconElement.style.display = '';
+            }, 300);
+        }, speed === 2.0 ? 0 : 1000);
+
+        // 2倍速时不自动隐藏，直到松开恢复
+        if (speed === 2.0) {
+            clearTimeout(shortcutHintTimeout);
+        }
     }
 
     // 移动端禁用右键菜单（防止长按弹出原生菜单）

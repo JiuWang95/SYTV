@@ -30,6 +30,8 @@ function showPage(n) {
     if (nav) nav.style.display = n === 'movies' ? 'none' : '';
     var footer = document.querySelector('.footer');
     if (footer) footer.style.display = n === 'movies' ? 'none' : '';
+    // 清除所有卡片的加载动画状态
+    document.querySelectorAll('.search-result-card.card-loading').forEach(function(c) { c.classList.remove('card-loading'); });
     updateNavButtons(n);
     handlePageLoad(n);
     window.scrollTo({ top: 0, behavior: 'smooth' });

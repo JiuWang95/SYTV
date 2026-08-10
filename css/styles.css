@@ -3699,5 +3699,39 @@ details[open] .invite-device-toggle::before {
     }
 }
 
+/* 卡片点击加载：流动炫彩边框动画 */
+.search-result-card.card-loading {
+    position: relative;
+    overflow: hidden;
+    pointer-events: none;
+}
+.search-result-card.card-loading::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    z-index: 1;
+    background: linear-gradient(90deg,
+        #ec4899, #8b5cf6, #3b82f6, #06b6d4, #10b981, #f59e0b, #ec4899);
+    background-size: 400% 100%;
+    border-radius: calc(var(--radius-lg, 0.5rem) + 2px);
+    animation: cardShimmerFlow 1.2s linear infinite;
+}
+.search-result-card.card-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: var(--radius-lg, 0.5rem);
+    backdrop-filter: blur(1px);
+}
+.search-result-card.card-loading > * {
+    position: relative;
+    z-index: 3;
+}
+@keyframes cardShimmerFlow {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 400% 50%; }
+}
 
 

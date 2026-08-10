@@ -412,7 +412,13 @@ function setupEventListeners() {
                 const id = el.dataset.id;
                 const name = el.dataset.name;
                 const source = el.dataset.source;
-                if (id && name && source) playDirectly(id, name, source);
+                if (id && name && source) {
+                    // 清除其他卡片的加载状态
+                    document.querySelectorAll('.search-result-card.card-loading').forEach(c => c.classList.remove('card-loading'));
+                    // 给当前点击卡片添加流动炫彩动画
+                    el.classList.add('card-loading');
+                    playDirectly(id, name, source);
+                }
                 break;
             }
             case 'edit-custom-api': editCustomApi(parseInt(el.dataset.index)); break;

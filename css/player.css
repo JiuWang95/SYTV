@@ -306,6 +306,24 @@ input:checked + .slider:before {
     opacity: 1;
 }
 
+/* 倍速提示专用样式：小字、透明背景、影片上方居中 */
+.shortcut-hint.speed-hint {
+    top: 30%;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    gap: 0;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.shortcut-hint.speed-hint #shortcutIcon {
+    display: none;
+}
+.shortcut-hint.speed-hint #shortcutText {
+    letter-spacing: 0.03em;
+}
+
 /* 原生全屏时，播放器容器铺满 */
 .player-container:-webkit-full-screen,
 .player-container:-moz-full-screen,
