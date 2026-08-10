@@ -29,6 +29,15 @@ function _buildSearchCardsHtml(items) {
     var sc = item.source_code || "";
     var au = item.api_url ? " data-api-url='" + item.api_url.replace(/"/g, "&quot;") + "'" : "";
     var cv = item.vod_pic && item.vod_pic.indexOf("http") === 0;
+    // 提取简介：优先 vod_blurb，其次从 vod_content 中剥离HTML
+    var desc = "";
+    if (item.vod_blurb) {
+      desc = item.vod_blurb.toString().replace(/<[^>]+>/g, "").replace(/</g, "&lt;").trim();
+    } else if (item.vod_content) {
+      desc = item.vod_content.toString().replace(/<[^>]+>/g, "").replace(/</g, "&lt;").trim();
+    }
+    if (desc.length > 200) desc = desc.substring(0, 200);
+    var remarks = (item.vod_remarks || "").toString().replace(/</g, "&lt;");
     // 项目卡片样式：圆角、左海报 + 右内容、粉色标签
     var h = "<div class='card-hover search-result-card rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md' data-action='play-directly' data-id='" + sid + "' data-name='" + sn + "' data-source='" + sc + "'" + au + ">";
     h += "<div class='flex h-full'>";
@@ -38,7 +47,8 @@ function _buildSearchCardsHtml(items) {
     if (tn) h += "<span>" + tn + "</span>";
     if (item.vod_year) h += "<span>" + item.vod_year + "</span>";
     h += "</div></div>";
-    h += "<p class='card-content-description'>" + (item.vod_remarks || "暂无介绍").toString().replace(/</g, "&lt;") + "</p>";
+    if (remarks) h += "<p class='card-content-remarks'>" + remarks + "</p>";
+    if (desc) h += "<p class='card-content-synopsis'>" + desc + "</p>";
     h += "<div class='card-content-footer'>" + (srcInfo || "") + "</div></div></div>";
     h += "<button class='card-share-btn' data-action='share-video' data-title='" + sn + "' data-url='" + (item.vod_id ? window.location.origin + "/player.html?id=" + encodeURIComponent(item.vod_id) + "&source=" + encodeURIComponent(sc || "") + "&title=" + encodeURIComponent(sn) : "") + "' onclick='event.stopPropagation();_shareVideo(this.dataset.title, this.dataset.url)' title='分享'>&#x2197;</button></div>";
     return h;
@@ -150,7 +160,7 @@ function generateSkeletonCards(count) {
   var cols = window.innerWidth < 640 ? 1 : window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4;
   var cards = [];
   for (var i = 0; i < Math.max(count, cols * 2); i++) {
-    cards.push('<div class="skeleton-card"><div class="skeleton-card-img"></div><div class="skeleton-card-body"><div class="skeleton-line" style="width:85%"></div><div class="skeleton-line" style="width:55%"></div><div class="skeleton-tags"><div class="skeleton-tag"></div><div class="skeleton-tag"></div></div><div class="skeleton-line-sm" style="margin-top:auto"></div><div class="skeleton-line-xs"></div></div></div>');
+    cards.push('<div class="skeleton-card"><div class="skeleton-card-img"></div><div class="skeleton-card-body"><div class="skeleton-line" style="width:85%"></div><div class="skeleton-line" style="width:55%"></div><div class="skeleton-tags"><div class="skeleton-tag"></div><div class="skeleton-tag"></div></div><div class="skeleton-line-sm" style="width:40%"></div><div class="skeleton-line-xs"></div><div class="skeleton-line-xs" style="width:90%"></div><div class="skeleton-line-xs" style="margin-top:auto"></div></div></div>');
   }
   return cards.join('');
 }

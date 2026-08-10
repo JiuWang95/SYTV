@@ -982,10 +982,20 @@ body {
     color: #f472b6;
 }
 
-.card-hover.search-result-card .card-content-description {
-    flex-grow: 1;
+/* 集数/更新状态 */
+.card-hover.search-result-card .card-content-remarks {
+    flex-shrink: 0;
     font-size: 0.8rem;
-    color: #9ca3af;
+    color: #f472b6;
+    margin-bottom: 0.25rem;
+}
+
+/* 影片简介：两行省略 */
+.card-hover.search-result-card .card-content-synopsis {
+    flex-grow: 1;
+    font-size: 0.75rem;
+    color: #71717a;
+    line-height: 1.5;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
