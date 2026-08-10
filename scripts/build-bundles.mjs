@@ -30,7 +30,7 @@ const APP = {
     'js/api/api-config.js', 'js/api/loadBalancer.js',
     'js/ui/ui-search-history.js', 'js/ui/ui-viewing-history.js', 'js/ui/ui.js',
     'js/api/api.js', 'js/api/search.js', 'js/api/tmdb.js',
-    'js/player/player-bridge.js', 'js/ui/search-cards.js',
+    'js/player/player-bridge.js', 'js/ui/search-cards.js', 'js/ui/movies-page.js',
     'js/app/app-search.js', 'js/app/app-config.js', 'js/app/app.js',
     'js/app/app-init.js', 'js/app/app-routing.js',
     'js/utils/version-updater.js', 'js/core/cache-manager.js',

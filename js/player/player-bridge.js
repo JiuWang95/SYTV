@@ -27,12 +27,12 @@ async function buildApiParamsAndFetch(id, sourceCode) {
     }
 }
 
-// 构建播放页返回地址：搜索结果页回搜索 URL，否则优先最近浏览页（类别/历史记录），兜底首页
+// 构建播放页返回地址：搜索结果页/结果页回对应 URL，否则优先最近浏览页（类别/历史记录），兜底首页
 function buildPlayerBackUrl() {
-    // 搜索结果页：返回时回到搜索 URL（首页配合缓存秒开恢复结果）
+    // 搜索结果页 / 影片结果页：返回时回到原 URL（保留 hash，如 #movies，配合缓存秒开恢复）
     const path = window.location.pathname;
     if (path.startsWith('/s=') || window.location.search.startsWith('?s=')) {
-        return window.location.origin + path + window.location.search;
+        return window.location.origin + path + window.location.search + window.location.hash;
     }
     let backUrl = window.location.origin + '/index.html';
     try {

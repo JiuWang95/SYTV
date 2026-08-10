@@ -11,6 +11,16 @@ function _cardImgFallback(img) {
   img.src = _CARD_IMG_FALLBACK_SRC;
 }
 
+// 来源多色色板：角标 / 来源标识 / 侧栏图标按 source_code 稳定取色
+var _SOURCE_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#14b8a6', '#6366f1', '#eab308'];
+
+function _sourceColor(code) {
+  var s = String(code || '');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return _SOURCE_COLORS[h % _SOURCE_COLORS.length];
+}
+
 function _buildSearchCardsHtml(items) {
   return items.map(function(item) {
     var sid = (item.vod_id || "").toString().replace(/[^\w-]/g, "");
@@ -19,6 +29,7 @@ function _buildSearchCardsHtml(items) {
     var sc = item.source_code || "";
     var au = item.api_url ? " data-api-url='" + item.api_url.replace(/"/g, "&quot;") + "'" : "";
     var cv = item.vod_pic && item.vod_pic.indexOf("http") === 0;
+    // 项目卡片样式：圆角、左海报 + 右内容、粉色标签
     var h = "<div class='card-hover search-result-card rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md' data-action='play-directly' data-id='" + sid + "' data-name='" + sn + "' data-source='" + sc + "'" + au + ">";
     h += "<div class='flex h-full'>";
     if (cv) { h += "<div class='search-card-img-container'><img src='" + item.vod_pic + "' alt='" + sn + "' loading='lazy' class='loading-fade' onerror=\"_cardImgFallback(this)\" onload=\"this.classList.add('loaded')\"></div>"; }
@@ -30,7 +41,6 @@ function _buildSearchCardsHtml(items) {
     h += "<p class='card-content-description'>" + (item.vod_remarks || "暂无介绍").toString().replace(/</g, "&lt;") + "</p>";
     h += "<div class='card-content-footer'>" + (srcInfo || "") + "</div></div></div>";
     h += "<button class='card-share-btn' data-action='share-video' data-title='" + sn + "' data-url='" + (item.vod_id ? window.location.origin + "/player.html?id=" + encodeURIComponent(item.vod_id) + "&source=" + encodeURIComponent(sc || "") + "&title=" + encodeURIComponent(sn) : "") + "' onclick='event.stopPropagation();_shareVideo(this.dataset.title, this.dataset.url)' title='分享'>&#x2197;</button></div>";
-    return h;
     return h;
   }).join("");
 }
@@ -121,8 +131,10 @@ function _applySourceFilter(sourceFilter) {
   if (ra) ra.scrollIntoView({ behavior: 'instant', block: 'start' });
 }
 
-function animateCardEntrance() {
-  document.querySelectorAll('#results .card-hover').forEach(function(card, i) {
+function animateCardEntrance(containerSel) {
+  var root = document.querySelector(containerSel || '#results');
+  if (!root) return;
+  root.querySelectorAll('.card-hover').forEach(function(card, i) {
     card.style.opacity = '0';
     card.style.transform = 'translateY(16px)';
     setTimeout(function() {

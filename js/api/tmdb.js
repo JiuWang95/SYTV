@@ -577,12 +577,13 @@ function renderTmdbCards(items) {
 
     const safeTitle = title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const safeOverview = overview.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const safeGenres = genresList.map(g => g.replace(/"/g, '')).join(',');
 
     const card = document.createElement('div');
     card.className = 'tmdb-card';
 
     card.innerHTML = `
-      <div class="tmdb-card-inner" data-action="tmdb-search-video" data-title="${safeTitle}">
+      <div class="tmdb-card-inner" data-action="tmdb-search-video" data-title="${safeTitle}" data-genres="${safeGenres}">
         <div class="tmdb-card-poster">
           ${posterPath
             ? `<img src="${posterPath}" alt="${safeTitle}" loading="lazy" class="tmdb-card-img" onerror="this.parentElement.innerHTML = '<div class=\\'tmdb-card-placeholder\\'><svg class=\\'w-12 h-12\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'1.5\\' d=\\'M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z\\'></path></svg><span class=\\'text-xs text-gray-500 mt-2\\'>${safeTitle}</span></div>'">
@@ -684,10 +685,20 @@ function renderTmdbPagination() {
   });
 }
 
-function tmdbSearchVideo(title) {
+function tmdbSearchVideo(title, genres) {
   if (!title) return;
-  const safeTitle = title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+  // 统一进入结果页：左侧源列表 + 右侧结果，携带类型信息用于「无关键词结果时的分类兜底」
+  if (typeof openMoviesPage === 'function') {
+    openMoviesPage(title, {
+      from: 'category',
+      fallbackGenres: genres ? String(genres).split(',').map(g => g.trim()).filter(Boolean) : []
+    });
+    return;
+  }
+
+  // 旧逻辑兜底（结果页模块未加载时）
+  const safeTitle = title.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   switchPage('home');
   const input = document.getElementById('searchInput');
   if (input) {

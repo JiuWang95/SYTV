@@ -12,9 +12,22 @@ function getCurrentSearchKeyword() {
     } catch (e) { return ''; }
 }
 
-// 跳转播放页前缓存搜索结果，返回首页时直接渲染
+// 跳转播放页前缓存搜索结果，返回结果页/首页时直接渲染
 function cacheSearchContext() {
     try {
+        // 优先缓存结果页状态（搜索/类别统一入口）
+        if (typeof _moviesState !== 'undefined' && _moviesState && _moviesState.keyword && _moviesState.results && _moviesState.results.length) {
+            const payload = {
+                keyword: _moviesState.keyword,
+                results: _moviesState.results.slice(0, SEARCH_CACHE_MAX),
+                activeFilter: _moviesState.activeSource || 'all',
+                from: _moviesState.from || 'home',
+                sourcePage: 'movies',
+                timestamp: Date.now()
+            };
+            sessionStorage.setItem(SEARCH_CACHE_KEY, JSON.stringify(payload));
+            return;
+        }
         if (!_lastAllResults || _lastAllResults.length === 0) return;
         const keyword = getCurrentSearchKeyword() || document.getElementById('searchInput').value.trim();
         if (!keyword) return;
@@ -43,6 +56,11 @@ function restoreSearchFromCache() {
         return false;
     }
     if (!cached || !cached.keyword || !Array.isArray(cached.results) || cached.results.length === 0) return false;
+
+    // 结果页缓存：委托结果页模块恢复（搜索/类别统一入口）
+    if (cached.sourcePage === 'movies' && typeof restoreMoviesFromCache === 'function') {
+        if (restoreMoviesFromCache(cached)) return true;
+    }
 
     // 还原内存状态
     _lastAllResults = cached.results;
@@ -373,6 +391,7 @@ function setupEventListeners() {
             case 'switch-page': switchPage(el.dataset.page); break;
             case 'reset-home': resetSearchArea(); closeMobileSearch(); hideSearchHistory(); break;
             case 'close-results': closeSearchResults(); break;
+            case 'movies-back': moviesPageBack(); break;
             case 'search': search(); break;
             case 'close-modal': closeModal(); break;
             case 'open-disclaimer': openDisclaimerModal(); break;
@@ -401,7 +420,7 @@ function setupEventListeners() {
             case 'update-custom-api': updateCustomApi(parseInt(el.dataset.index)); break;
             case 'cancel-edit-custom-api': cancelEditCustomApi(); break;
             case 'load-tmdb-results': loadTmdbResults(); break;
-            case 'tmdb-search-video': tmdbSearchVideo(el.dataset.title); break;
+            case 'tmdb-search-video': tmdbSearchVideo(el.dataset.title, el.dataset.genres || ''); break;
             case 'play-from-history': {
                 const url = el.dataset.url;
                 const title = el.dataset.title;
@@ -550,13 +569,27 @@ async function search() {
         return;
     }
 
+    // 用户主动发起的搜索：结果页返回去向固定为首页（清除类别入口残留上下文）
+    if (typeof _moviesState !== 'undefined' && _moviesState) {
+        _moviesState.from = 'home';
+        _moviesState.fallbackGenres = [];
+    }
+    // 结果页可用时，搜索完成后统一路由到结果页（桌面/移动全设备统一入口）
+    const routeToMovies = !!document.getElementById('page-movies');
+    // 新搜索发起：递增结果页纪元，作废仍在途的旧类别入口加载（后发起者优先）
+    let searchEpoch = 0;
+    if (typeof _moviesEpoch !== 'undefined') {
+        _moviesEpoch++;
+        searchEpoch = _moviesEpoch;
+    }
+
     // 清空结果区域，等待首个源返回后直接渲染真实结果
     const resultsDiv = document.getElementById('results');
     const resultsArea = document.getElementById('resultsArea');
     if (resultsDiv) {
         resultsDiv.innerHTML = '';
     }
-    if (resultsArea) {
+    if (resultsArea && !routeToMovies) {
         resultsArea.classList.remove('hidden');
     }
 
@@ -577,15 +610,19 @@ async function search() {
         let allResults = [];
         const hiddenFilterEnabled = localStorage.getItem('hiddenFilterEnabled') === 'true';
 
-        // 显示结果区域，调整搜索区域
-        document.getElementById('searchArea').classList.remove('flex-1');
-        document.getElementById('searchArea').classList.add('mb-8');
-        document.getElementById('resultsArea').classList.remove('hidden');
+        // 显示结果区域，调整搜索区域（仅非结果页路由时生效，结果页由 #page-movies 承载）
+        if (!routeToMovies) {
+            document.getElementById('searchArea').classList.remove('flex-1');
+            document.getElementById('searchArea').classList.add('mb-8');
+            document.getElementById('resultsArea').classList.remove('hidden');
+        }
 
         // 抬升布局 + 显示关闭按钮
-        document.querySelector('.home-layout')?.classList.add('has-results');
-        document.getElementById('closeSearchResults')?.classList.remove('hidden');
-        document.getElementById('closeSearchResults')?.classList.add('flex');
+        if (!routeToMovies) {
+            document.querySelector('.home-layout')?.classList.add('has-results');
+            document.getElementById('closeSearchResults')?.classList.remove('hidden');
+            document.getElementById('closeSearchResults')?.classList.add('flex');
+        }
 
         // 更新URL
         try {
@@ -637,11 +674,13 @@ async function search() {
 
                 allResults = allResults.concat(filtered);
 
-                if (!_gotFirstResult) {
-                    _gotFirstResult = true;
-                    resultsDiv.innerHTML = _buildSearchCardsHtml(filtered);
-                } else {
-                    resultsDiv.insertAdjacentHTML('beforeend', _buildSearchCardsHtml(filtered));
+                if (!routeToMovies) {
+                    if (!_gotFirstResult) {
+                        _gotFirstResult = true;
+                        resultsDiv.innerHTML = _buildSearchCardsHtml(filtered);
+                    } else {
+                        resultsDiv.insertAdjacentHTML('beforeend', _buildSearchCardsHtml(filtered));
+                    }
                 }
                 _updateAllTabCount(allResults.length);
             } catch (e) {
@@ -657,11 +696,19 @@ async function search() {
                     filtered = await applyFilter(fallbackResults);
                 }
                 allResults = filtered;
-                resultsDiv.innerHTML = _buildSearchCardsHtml(filtered);
+                if (!routeToMovies) {
+                    resultsDiv.innerHTML = _buildSearchCardsHtml(filtered);
+                }
                 _updateAllTabCount(filtered.length);
             }
         } else {
             await Promise.allSettled(searchTasks);
+        }
+
+        // 期间有更新的搜索/类别入口发起，放弃本次迟到结果，避免覆盖新页面
+        if (searchEpoch && typeof _moviesEpoch !== 'undefined' && searchEpoch !== _moviesEpoch) {
+            hideLoading();
+            return;
         }
 
         if (allResults.length > 0) {
@@ -678,20 +725,29 @@ async function search() {
                 return (a.source_name || '').localeCompare(b.source_name || '', 'zh-CN');
             });
             _lastAllResults = allResults;
-            _renderSourceFilterTabs(allResults.length);
-            _applySourceFilter(_activeSourceFilter);
+            if (routeToMovies && typeof showMoviesResults === 'function') {
+                // 统一进入结果页（左侧源列表 + 右侧结果）
+                showMoviesResults(query, allResults, { from: 'home', fallbackGenres: [] });
+            } else {
+                _renderSourceFilterTabs(allResults.length);
+                _applySourceFilter(_activeSourceFilter);
+            }
         } else {
-            resultsDiv.innerHTML = `
-                <div class="col-span-full text-center py-16">
-                    <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
-                    <p class="mt-1 text-sm text-gray-500">请尝试其他关键词或更换数据源</p>
-                </div>
-            `;
-            document.getElementById('sourceFilterTabs').innerHTML = '';
+            if (routeToMovies && typeof showMoviesResults === 'function') {
+                showMoviesResults(query, [], { from: 'home', fallbackGenres: [] });
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="col-span-full text-center py-16">
+                        <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
+                        <p class="mt-1 text-sm text-gray-500">请尝试其他关键词或更换数据源</p>
+                    </div>
+                `;
+                document.getElementById('sourceFilterTabs').innerHTML = '';
+            }
             hideLoading();
             return;
         }

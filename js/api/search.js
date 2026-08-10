@@ -2,6 +2,10 @@
 const _searchCache = new Map();
 const SEARCH_CACHE_TTL = 30 * 60 * 1000; // 缓存30分钟
 
+// 按分类拉取缓存（类别入口混合兜底用）
+const _categoryCache = new Map();
+const CATEGORY_CACHE_TTL = 30 * 60 * 1000; // 缓存30分钟
+
 function _getCacheKey(apiId, query) {
     return `${apiId}_${query.toLowerCase()}`;
 }
@@ -185,6 +189,72 @@ async function searchByAPIAndKeyWord(apiId, query) {
             window.loadBalancer.recordApiResult(apiId, false, 0, error);
         }
         
+        return [];
+    }
+}
+
+// 按分类拉取某源影片（MacCMS 标准 ac=videolist&class=<分类名>&pg=<页码>）
+// 用于类别入口「关键词搜索无结果」时的混合兜底，不依赖关键词
+async function searchByCategory(apiId, className, page = 1) {
+    const cacheKey = apiId + '|' + className + '|' + page;
+    const cached = _categoryCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CATEGORY_CACHE_TTL) {
+        return cached.results;
+    }
+    _categoryCache.delete(cacheKey);
+
+    try {
+        let apiBaseUrl, apiName;
+
+        if (apiId.startsWith('custom_')) {
+            const customApi = getCustomApiInfo(apiId.replace('custom_', ''));
+            if (!customApi) return [];
+            apiBaseUrl = customApi.url;
+            apiName = customApi.name;
+        } else {
+            if (!API_SITES[apiId]) return [];
+            apiBaseUrl = API_SITES[apiId].api;
+            apiName = API_SITES[apiId].name;
+        }
+
+        const apiUrl = apiBaseUrl + '?ac=videolist&class=' + encodeURIComponent(className) + '&pg=' + page;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), AGGREGATED_SEARCH_CONFIG?.timeout || 8000);
+
+        const proxiedUrl = await window.ProxyAuth?.addAuthToProxyUrl ?
+            await window.ProxyAuth.addAuthToProxyUrl(PROXY_URL + encodeURIComponent(apiUrl)) :
+            PROXY_URL + encodeURIComponent(apiUrl);
+
+        const response = await fetch(proxiedUrl, {
+            headers: API_CONFIG.search.headers,
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        if (!data || !Array.isArray(data.list) || data.list.length === 0) return [];
+
+        const results = data.list.map(item => ({
+            ...item,
+            source_name: apiName,
+            source_code: apiId,
+            api_url: apiId.startsWith('custom_') ? apiBaseUrl : undefined
+        }));
+
+        _categoryCache.set(cacheKey, { results, timestamp: Date.now() });
+        if (_categoryCache.size > 100) {
+            const now = Date.now();
+            for (const [k, v] of _categoryCache) {
+                if (now - v.timestamp > CATEGORY_CACHE_TTL) _categoryCache.delete(k);
+            }
+        }
+        return results;
+    } catch (error) {
+        console.warn(`API ${apiId} 按分类(${className})拉取失败:`, error);
         return [];
     }
 }

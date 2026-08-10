@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
+    // 影片结果页（#movies）：由结果页模块自行恢复缓存或按 /s= 关键词自动搜索，避免重复触发
+    if (location.hash === '#movies') return;
+
     // 检查页面路径中的搜索参数 (格式: /s=keyword)
     const path = window.location.pathname;
     const searchPrefix = '/s=';

@@ -1005,10 +1005,11 @@ body {
 
 .card-hover.search-result-card .card-content-footer .source-label-tag {
     font-size: 0.7rem;
-    padding: 0.125rem 0.5rem;
-    border-radius: 0.25rem;
-    background-color: rgba(168, 85, 247, 0.2);
-    color: #c4b5fd;
+    padding: 0.15rem 0.6rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-default);
+    background-color: var(--color-surface-raised);
+    color: #a0aec0;
 }
 
 /* 移动端响应式调整 */
@@ -1473,7 +1474,8 @@ html[data-init-page="category"] #page-category,
 html[data-init-page="history"] #page-history,
 html[data-init-page="settings"] #page-settings,
 html[data-init-page="about"] #page-about,
-html[data-init-page="readme"] #page-readme {
+html[data-init-page="readme"] #page-readme,
+html[data-init-page="movies"] #page-movies {
     display: block;
     opacity: 1;
     transform: translateY(0);
@@ -3426,5 +3428,276 @@ details[open] .invite-device-toggle::before {
         width: 2.5rem;
     }
 }
+
+/* ====== 影片结果页（左筛选 + 右网格，复用项目极光主题背景） ====== */
+.movies-page-layout {
+    min-height: 100vh;
+    padding: 0 1.5rem 2rem;
+    background: transparent;
+}
+
+/* 顶部导航栏：左返回 + 居中标题 */
+.movies-topbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 3rem;
+    margin-bottom: 1rem;
+}
+.movies-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+.movies-back-btn:hover {
+    color: var(--color-primary);
+}
+.movies-topbar-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    max-width: 70%;
+    pointer-events: none;
+}
+.movies-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #f3f4f6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.movies-subtitle {
+    font-size: 0.68rem;
+    color: var(--color-text-tertiary);
+    margin-top: 0.1rem;
+}
+.movies-topbar-spacer {
+    width: 2.25rem;
+    flex-shrink: 0;
+}
+
+/* 主体左右分栏：左侧筛选栏宽度自适应内容 + 右侧网格 */
+.movies-body {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+}
+
+/* 左侧筛选侧边栏：无面板包裹，直接显示标签 */
+.movies-sources-panel {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+}
+.movies-sources-panel::-webkit-scrollbar {
+    width: 4px;
+}
+.movies-sources-panel::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 2px;
+}
+.movies-sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+.movies-sources-header {
+    display: none;
+}
+
+/* 源项：HarmonyOS 深色主题标签样式（与类别页一致） */
+.movies-source-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-default);
+    background: var(--color-surface-raised);
+    color: #a0aec0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    font-weight: 400;
+    text-align: left;
+    margin: 0;
+    width: 100%;
+    white-space: nowrap;
+}
+.movies-source-item:hover {
+    border-color: var(--color-primary);
+    color: #fff;
+}
+.movies-source-item.active {
+    background: var(--color-primary);
+    border-color: transparent;
+    color: #fff;
+}
+.movies-source-icon {
+    display: none;
+}
+.movies-source-name {
+    white-space: nowrap;
+}
+.movies-source-count {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text-tertiary);
+}
+.movies-source-item.active .movies-source-count {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+/* 右侧主内容区 */
+.movies-results-panel {
+    min-width: 0;
+}
+/* 3 列等宽网格（排版保持），卡片复用项目 search-result-card 样式 */
+.movies-results-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+/* 空态 */
+.movies-empty {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 4rem 1rem;
+    border: 1px dashed var(--color-border-default);
+    background: var(--color-surface-base);
+}
+.movies-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    color: var(--color-text-disabled);
+    margin-bottom: 1rem;
+}
+.movies-empty-title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+}
+.movies-empty-desc {
+    font-size: 0.8rem;
+    color: var(--color-text-tertiary);
+    margin-top: 0.375rem;
+}
+.movies-empty-btn {
+    margin-top: 1.25rem;
+    padding: 0.5rem 1.5rem;
+    border-radius: 9999px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.movies-empty-btn:hover {
+    background: #db2777;
+}
+
+/* 分类兜底提示 */
+.movies-fallback-tip {
+    grid-column: 1 / -1;
+    font-size: 0.8rem;
+    color: var(--pink-400);
+    background: rgba(236, 72, 153, 0.08);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+/* 移动端/竖屏：源列表在顶部横向排列，无面板框架，与类别页标签一致 */
+@media (max-width: 1023px) {
+    .movies-page-layout {
+        padding: 0 0.75rem 2rem;
+    }
+    .movies-body {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+    .movies-sources-panel {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
+        scrollbar-width: none;
+    }
+    .movies-sources-list {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.25rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    .movies-sources-list::-webkit-scrollbar {
+        display: none;
+    }
+    .movies-sources-panel::-webkit-scrollbar {
+        display: none;
+    }
+    .movies-sources-header {
+        display: none;
+    }
+    .movies-source-item {
+        margin: 0;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+        align-self: auto;
+    }
+    .movies-source-item.active .movies-source-count {
+        background: rgba(255, 255, 255, 0.25);
+    }
+    .movies-results-grid {
+        grid-template-columns: 1fr;
+    }
+    .movies-topbar {
+        height: 2.75rem;
+        margin-bottom: 0.75rem;
+    }
+    .movies-title {
+        font-size: 0.95rem;
+    }
+}
+
 
 

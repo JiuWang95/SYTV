@@ -25,6 +25,11 @@ function showPage(n) {
     if (t) t.classList.add("active");
     var m = document.querySelector('.main-container');
     if (m) m.setAttribute("data-page", n);
+    // TV 风格结果页全屏：隐藏全局导航栏与页脚
+    var nav = document.querySelector('.top-nav-bar');
+    if (nav) nav.style.display = n === 'movies' ? 'none' : '';
+    var footer = document.querySelector('.footer');
+    if (footer) footer.style.display = n === 'movies' ? 'none' : '';
     updateNavButtons(n);
     handlePageLoad(n);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -46,6 +51,7 @@ function handlePageLoad(n) {
   switch(n) {
     case 'category': if (typeof initTmdbCategory === 'function') initTmdbCategory(); break;
     case 'history': if (typeof loadViewingHistory === 'function') loadViewingHistory(); break;
+    case 'movies': if (typeof initMoviesPage === 'function') initMoviesPage(); break;
     case 'about': loadAboutPageChangelog(); break;
     case 'readme': loadReadmePage(); break;
   }

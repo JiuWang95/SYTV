@@ -208,6 +208,34 @@
             </div>
         </div>
 
+        <!-- 影片结果页（左筛选 + 右网格，复用项目极光主题） -->
+        <div id="page-movies" class="page-content">
+            <div class="movies-page-layout">
+                <!-- 顶部导航栏：左返回 + 居中标题 -->
+                <div class="movies-topbar">
+                    <button class="movies-back-btn" data-action="movies-back" aria-label="返回">
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 12H5m7-7l-7 7 7 7"/>
+                        </svg>
+                    </button>
+                    <div class="movies-topbar-center">
+                        <h1 id="moviesTitle" class="movies-title"></h1>
+                        <p id="moviesSubtitle" class="movies-subtitle"></p>
+                    </div>
+                    <div class="movies-topbar-spacer"></div>
+                </div>
+                <div class="movies-body">
+                    <aside class="movies-sources-panel">
+                        <div class="movies-sources-header">影片源</div>
+                        <div id="moviesSourcesList" class="movies-sources-list"></div>
+                    </aside>
+                    <section class="movies-results-panel">
+                        <div id="moviesResults" class="movies-results-grid"></div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
         <!-- 分类页面 -->
         <div id="page-category" class="page-content">
             <div class="category-page-layout">
@@ -670,8 +698,10 @@
 
 
 
+
+
     <script src="dist/leletv-core.jqj6en.js?v=v3.3.1" defer></script>
-    <script src="dist/leletv-app.rdcabg.js?v=v3.3.1" defer></script>
+    <script src="dist/leletv-app.8xkckk.js?v=v3.3.1" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>
