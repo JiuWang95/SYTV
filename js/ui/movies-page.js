@@ -251,6 +251,7 @@ async function loadMoviesResults() {
   var deadline = Date.now() + 12000;
   var grid = document.getElementById('moviesResults');
   var allResults = [];
+  var firstResultRendered = false;
 
   for (var i = 0; i < ordered.length; i++) {
     if (Date.now() > deadline) break;
@@ -264,6 +265,11 @@ async function loadMoviesResults() {
       if (!results || results.length === 0) continue;
       allResults = allResults.concat(results);
       _moviesState.results = allResults.slice();
+      // 第一个结果到达时，清空骨架屏占位
+      if (!firstResultRendered && grid) {
+        grid.innerHTML = '';
+        firstResultRendered = true;
+      }
       if (grid) grid.insertAdjacentHTML('beforeend', _buildSearchCardsHtml(results));
       renderMoviesSidebar();
     } catch (e) {
