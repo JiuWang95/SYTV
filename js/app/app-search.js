@@ -2,6 +2,9 @@
 const SEARCH_CACHE_KEY = 'leletv_search_cache';
 const SEARCH_CACHE_MAX = 800; // 缓存结果条数上限（控制 sessionStorage 体积）
 
+// 点击卡片跳转播放页的延迟定时器：保证流星动画循环可见后再跳转
+let _pendingPlayDirectTimer = null;
+
 // 获取当前搜索关键词（从 URL /s= 或 ?s= 提取）
 function getCurrentSearchKeyword() {
     try {
@@ -413,11 +416,17 @@ function setupEventListeners() {
                 const name = el.dataset.name;
                 const source = el.dataset.source;
                 if (id && name && source) {
-                    // 清除其他卡片的加载状态
+                    // 清除其他卡片的加载状态与未触发的跳转定时器（防止快速连点跳错片）
                     document.querySelectorAll('.search-result-card.card-loading').forEach(c => c.classList.remove('card-loading'));
-                    // 给当前点击卡片添加流动炫彩动画
+                    if (_pendingPlayDirectTimer) clearTimeout(_pendingPlayDirectTimer);
+                    // 给当前点击卡片添加流星动画
                     el.classList.add('card-loading');
-                    playDirectly(id, name, source);
+                    // 流星动画无限循环展示，确保用户看到反馈后再跳转播放页。
+                    // iOS Safari 若立即跳转会跳过中间渲染帧，动画完全不可见。
+                    _pendingPlayDirectTimer = setTimeout(function () {
+                        _pendingPlayDirectTimer = null;
+                        playDirectly(id, name, source);
+                    }, 800);
                 }
                 break;
             }
