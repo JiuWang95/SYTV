@@ -3749,6 +3749,7 @@ details[open] .invite-device-toggle::before {
         font-size: 0.75rem;
         flex-shrink: 0;
         align-self: auto;
+        width: auto;
     }
     .movies-source-item.active .movies-source-count {
         background: rgba(255, 255, 255, 0.25);

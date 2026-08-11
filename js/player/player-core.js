@@ -49,12 +49,14 @@ function setupHlsCustomType(video, url, hlsConfig) {
     let bufferAppendErrorCount = 0;
 
     video.addEventListener('playing', function () {
-        playbackStarted = true;
+        playbackStarted = true;
+
         if (episodeSwitchTimeout) {
             clearTimeout(episodeSwitchTimeout);
             episodeSwitchTimeout = null;
         }
-        window.isSwitchingVideo = false;
+        window.isSwitchingVideo = false;
+
         document.getElementById('error').style.display = 'none';
     });
 
@@ -116,24 +118,30 @@ function setupHlsCustomType(video, url, hlsConfig) {
         }
     });
 
-    hls.on(Hls.Events.FRAG_LOADED, function () {
+    hls.on(Hls.Events.FRAG_LOADED, function () {
+
         if (episodeSwitchTimeout) {
             clearTimeout(episodeSwitchTimeout);
             episodeSwitchTimeout = null;
         }
-        window.isSwitchingVideo = false;
+        window.isSwitchingVideo = false;
+
     });
 
-    hls.on(Hls.Events.LEVEL_LOADED, function () {
+    hls.on(Hls.Events.LEVEL_LOADED, function () {
+
         if (episodeSwitchTimeout) {
             clearTimeout(episodeSwitchTimeout);
             episodeSwitchTimeout = null;
         }
-        window.isSwitchingVideo = false;
+        window.isSwitchingVideo = false;
+
     });
 }
 
 function createArtPlayerInstance(videoUrl, hlsConfig) {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     return new Artplayer({
         container: '#player',
         url: videoUrl,
@@ -155,7 +163,7 @@ function createArtPlayerInstance(videoUrl, hlsConfig) {
         fullscreen: true,
         fullscreenWeb: true,
         subtitleOffset: false,
-        miniProgressBar: true,
+        miniProgressBar: !isMobile,
         mutex: true,
         backdrop: true,
         playsInline: true,
@@ -284,12 +292,14 @@ function onPlayerRestart(art) {
     setTimeout(() => addNextEpisodeDirectly(art), TIMING.NEXT_EPISODE_BTN_SECONDARY);
 }
 
-function onVideoLoadedMetadata(art) {
+function onVideoLoadedMetadata(art) {
+
     if (episodeSwitchTimeout) {
         clearTimeout(episodeSwitchTimeout);
         episodeSwitchTimeout = null;
     }
-    window.isSwitchingVideo = false;
+    window.isSwitchingVideo = false;
+
     videoHasEnded = false;
 
     const urlParams = new URLSearchParams(window.location.search);

@@ -1,6 +1,18 @@
 // LeLeTV — UI 控件模块
 // 快捷键提示 + 进度条 + 覆盖层 + 资源切换
 
+const leletvPlayerTouchState = {
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+    lastTapAt: 0,
+    touchStartX: 0,
+    touchStartY: 0,
+    touchMoved: false,
+    longPressActive: false,
+    suppressNextClick: false,
+    isControlsVisible: null,
+    hideControls: null
+};
+
 function showShortcutHint(text, direction) {
     const hintElement = document.getElementById('shortcutHint');
     const textElement = document.getElementById('shortcutText');
@@ -255,27 +267,30 @@ function setupLongPressSpeedControl() {
         }
     }
 
-    // 移动端禁用右键菜单（防止长按弹出原生菜单）
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isMobile) {
+    if (leletvPlayerTouchState.isMobile) {
         playerElement.oncontextmenu = () => false;
     }
 
-    // 核心：开始长按倒计时
-    function startLongPress() {
+    function startLongPress(e) {
         if (controlsLocked) return;
+        if (e && e.target && e.target.closest && e.target.closest('.art-controls, .player-back-btn, .player-floating-lock-btn')) return;
         if (art.video.paused) return;
         originalPlaybackRate = art.video.playbackRate;
+        leletvPlayerTouchState.longPressActive = false;
         clearTimeout(longPressTimer);
         longPressTimer = setTimeout(() => {
-            if (art.video.paused) return;
+            if (art.video.paused || leletvPlayerTouchState.touchMoved) return;
             art.video.playbackRate = 2.0;
             isLongPress = true;
+            leletvPlayerTouchState.longPressActive = true;
+            leletvPlayerTouchState.suppressNextClick = true;
             showSpeedHint(2.0);
+            if (leletvPlayerTouchState.isMobile && leletvPlayerTouchState.isControlsVisible && leletvPlayerTouchState.isControlsVisible()) {
+                leletvPlayerTouchState.hideControls && leletvPlayerTouchState.hideControls();
+            }
         }, 500);
     }
 
-    // 核心：结束长按，恢复速度
     function endLongPress(e) {
         if (longPressTimer) {
             clearTimeout(longPressTimer);
@@ -284,6 +299,8 @@ function setupLongPressSpeedControl() {
         if (isLongPress) {
             art.video.playbackRate = originalPlaybackRate;
             isLongPress = false;
+            leletvPlayerTouchState.longPressActive = false;
+            leletvPlayerTouchState.suppressNextClick = true;
             showSpeedHint(originalPlaybackRate);
             if (e) e.preventDefault();
         }
@@ -327,6 +344,12 @@ function setupControlsBehavior() {
     let controlsVisible = true;
     let hideTimer = null;
     let clickTimer = null;
+    let lastTapAt = 0;
+    let tapStartX = 0;
+    let tapStartY = 0;
+    let touchMoved = false;
+    const DOUBLE_TAP_DELAY = 280;
+    const TAP_MOVE_THRESHOLD = 12;
 
     function showControls(resetTimer) {
         controlsVisible = true;
@@ -352,6 +375,11 @@ function setupControlsBehavior() {
         if (hideTimer) clearTimeout(hideTimer);
         hideTimer = setTimeout(hideControls, TIMING.CONTROLS_HIDE_DELAY);
     }
+
+    leletvPlayerTouchState.isControlsVisible = function () {
+        return controlsVisible;
+    };
+    leletvPlayerTouchState.hideControls = hideControls;
 
     // 在视频元素上方覆盖透明点击层（仅覆盖视频区域，不遮挡控件）
     const videoWrapper = art.video && art.video.parentElement;
@@ -385,7 +413,14 @@ function setupControlsBehavior() {
             e.preventDefault();
             return;
         }
-    }, { passive: false });
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        tapStartX = touch.clientX;
+        tapStartY = touch.clientY;
+        touchMoved = false;
+        leletvPlayerTouchState.touchMoved = false;
+        leletvPlayerTouchState.suppressNextClick = false;
+    }, { passive: true });
 
     overlay.addEventListener('touchmove', function (e) {
         if (controlsLocked) {
@@ -393,14 +428,45 @@ function setupControlsBehavior() {
             e.preventDefault();
             return;
         }
-    }, { passive: false });
+        const touch = e.touches && e.touches[0];
+        if (!touch) return;
+        if (Math.hypot(touch.clientX - tapStartX, touch.clientY - tapStartY) > TAP_MOVE_THRESHOLD) {
+            touchMoved = true;
+            leletvPlayerTouchState.touchMoved = true;
+        }
+    }, { passive: true });
 
     overlay.addEventListener('touchend', function (e) {
         if (controlsLocked) {
             e.stopPropagation();
             return;
         }
-    }, { passive: true });
+        if (leletvPlayerTouchState.longPressActive || touchMoved) {
+            e.preventDefault();
+            leletvPlayerTouchState.suppressNextClick = true;
+            return;
+        }
+
+        e.preventDefault();
+        leletvPlayerTouchState.suppressNextClick = true;
+
+        const now = Date.now();
+        if (now - lastTapAt <= DOUBLE_TAP_DELAY) {
+            lastTapAt = 0;
+            if (art.video.paused) art.play();
+            else art.pause();
+            if (controlsVisible) resetAutoHide();
+            return;
+        }
+
+        lastTapAt = now;
+        toggleControls();
+    }, { passive: false });
+
+    overlay.addEventListener('touchcancel', function () {
+        touchMoved = false;
+        leletvPlayerTouchState.touchMoved = false;
+    });
 
     overlay.addEventListener('dblclick', function (e) {
         if (controlsLocked) {
@@ -408,11 +474,23 @@ function setupControlsBehavior() {
             e.preventDefault();
             return;
         }
+        if (leletvPlayerTouchState.isMobile) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
     });
 
     overlay.addEventListener('click', function (e) {
         if (controlsLocked) {
             e.stopPropagation();
+            return;
+        }
+        if (leletvPlayerTouchState.isMobile) {
+            if (leletvPlayerTouchState.suppressNextClick) {
+                leletvPlayerTouchState.suppressNextClick = false;
+                e.stopPropagation();
+                e.preventDefault();
+            }
             return;
         }
         if (clickTimer) {
