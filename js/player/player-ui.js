@@ -273,7 +273,7 @@ function setupLongPressSpeedControl() {
 
     function startLongPress(e) {
         if (controlsLocked) return;
-        if (e && e.target && e.target.closest && e.target.closest('.art-controls, .player-back-btn, .player-floating-lock-btn')) return;
+        if (e && e.target && e.target.closest && e.target.closest('.art-controls, .art-bottom, .art-progress, .player-back-btn, .player-floating-lock-btn')) return;
         if (art.video.paused) return;
         originalPlaybackRate = art.video.playbackRate;
         leletvPlayerTouchState.longPressActive = false;
@@ -320,6 +320,13 @@ function setupLongPressSpeedControl() {
     playerElement.addEventListener('touchmove', function (e) {
         if (isLongPress) e.preventDefault();
     }, { passive: false });
+
+    // iOS：拦截 gesture 手势事件（长按放大镜 / 文字选择框）
+    if (leletvPlayerTouchState.isMobile && /iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        playerElement.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+        playerElement.addEventListener('gesturechange', function (e) { e.preventDefault(); });
+        playerElement.addEventListener('gestureend', function (e) { e.preventDefault(); });
+    }
 
     // 视频暂停时取消长按状态
     art.video.addEventListener('pause', function () {

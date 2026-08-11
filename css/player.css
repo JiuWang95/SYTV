@@ -91,6 +91,22 @@ body, html {
     display: block !important;
 }
 
+/* iOS：禁用长按文字选择 / 触控呼出菜单，保证长按倍速手势可用 */
+.art-video-player,
+.art-video-player video,
+.art-video-player .art-video,
+.art-video-player .art-layer,
+.art-video-player .art-bottom,
+.art-video-player .art-controls,
+.art-video-player .art-progress,
+#player,
+.player-click-overlay {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
 /* Fix for Chrome-specific issues */
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
     .art-video-player video {
