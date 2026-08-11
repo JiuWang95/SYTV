@@ -898,6 +898,62 @@ body {
     align-items: stretch;
     min-height: 170px;
     position: relative;
+    overflow: hidden;
+}
+
+/* hover 粉色流动扫光效果（简洁单次） */
+.card-hover.search-result-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(236, 72, 153, 0.08) 40%,
+        rgba(236, 72, 153, 0.15) 50%,
+        rgba(236, 72, 153, 0.08) 60%,
+        transparent 100%);
+    z-index: 1;
+    pointer-events: none;
+    transition: none;
+}
+.card-hover.search-result-card:not(.card-loading):hover::before {
+    animation: cardHoverSweep 0.6s ease-out forwards;
+}
+@keyframes cardHoverSweep {
+    0% { left: -100%; }
+    100% { left: 150%; }
+}
+
+/* 卡片加载中：粉色流动光带循环动画 */
+.search-result-card.card-loading {
+    pointer-events: none;
+}
+.search-result-card.card-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(236, 72, 153, 0.12) 30%,
+        rgba(236, 72, 153, 0.22) 50%,
+        rgba(236, 72, 153, 0.12) 70%,
+        transparent 100%);
+    background-size: 200% 100%;
+    animation: cardLoadingShimmer 1.2s linear infinite;
+    pointer-events: none;
+    border-radius: inherit;
+}
+.search-result-card.card-loading > .flex {
+    position: relative;
+    z-index: 3;
+}
+@keyframes cardLoadingShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 .card-hover.search-result-card > .flex {
@@ -2910,7 +2966,7 @@ body > header {
   background: rgba(0,0,0,0.6); color: #fff;
   border: none; cursor: pointer; font-size: 16px; line-height: 28px;
   text-align: center; opacity: 0; transition: opacity 0.2s;
-  z-index: 2; display: flex; align-items: center; justify-content: center;
+  z-index: 4; display: flex; align-items: center; justify-content: center;
 }
 .search-result-card:hover .card-share-btn,
 .search-result-card .card-share-btn:focus {
@@ -3707,41 +3763,6 @@ details[open] .invite-device-toggle::before {
     .movies-title {
         font-size: 0.95rem;
     }
-}
-
-/* 卡片点击加载：流动炫彩边框动画 */
-.search-result-card.card-loading {
-    position: relative;
-    overflow: hidden;
-    pointer-events: none;
-}
-.search-result-card.card-loading::before {
-    content: '';
-    position: absolute;
-    inset: -2px;
-    z-index: 1;
-    background: linear-gradient(90deg,
-        #ec4899, #8b5cf6, #3b82f6, #06b6d4, #10b981, #f59e0b, #ec4899);
-    background-size: 400% 100%;
-    border-radius: calc(var(--radius-lg, 0.5rem) + 2px);
-    animation: cardShimmerFlow 1.2s linear infinite;
-}
-.search-result-card.card-loading::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    background: rgba(0, 0, 0, 0.35);
-    border-radius: var(--radius-lg, 0.5rem);
-    backdrop-filter: blur(1px);
-}
-.search-result-card.card-loading > * {
-    position: relative;
-    z-index: 3;
-}
-@keyframes cardShimmerFlow {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 400% 50%; }
 }
 
 
