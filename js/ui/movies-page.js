@@ -95,7 +95,7 @@ function _getSourceCounts(results) {
 function renderMoviesPageHeader() {
   var t = document.getElementById('moviesTitle');
   var s = document.getElementById('moviesSubtitle');
-  if (t) t.textContent = '「' + (_moviesState.keyword || '') + '」';
+  if (t) t.textContent = _moviesState.keyword || '';
   if (!s) return;
   var n = _moviesState.results.length;
   var srcCount = 0;
@@ -110,6 +110,9 @@ function renderMoviesPageHeader() {
     case 'empty': s.textContent = '未找到相关内容'; break;
     default: s.textContent = n > 0 ? ('共 ' + n + ' 个结果 · 命中 ' + srcCount + ' 个源') : '未找到相关内容';
   }
+  // 状态点：加载(粉脉冲) / 分类兜底(琥珀脉冲) / 空(红) / 有结果(绿)
+  var dot = document.getElementById('moviesStatusDot');
+  if (dot) dot.setAttribute('data-mode', _moviesState.mode);
 }
 
 // ===================== 左侧源列表 =====================

@@ -367,10 +367,9 @@ app.use(express.static(join(__dirname), {
     if (path.endsWith('.png')) {
       res.setHeader('Content-Type', 'image/png');
     }
-    if (path.endsWith('.html')) {
+    if (path.endsWith('.html') || path.endsWith('.css') || path.endsWith('.js')) {
+      // 本地服务器不缓存源码资源：避免开发期改动后浏览器仍命中 max-age 旧缓存（如改样式后看不到新效果）
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    } else if (path.endsWith('.css') || path.endsWith('.js')) {
-      res.setHeader('Cache-Control', 'public, max-age=300');
     }
   }
 }));

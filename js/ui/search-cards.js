@@ -157,7 +157,7 @@ function animateCardEntrance(containerSel) {
 
 function generateSkeletonCards(count) {
   if (count === undefined) count = 8;
-  var cols = window.innerWidth < 640 ? 1 : window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : 4;
+  var cols = window.innerWidth < 640 ? 1 : window.innerWidth < 768 ? 2 : window.innerWidth < 1024 ? 3 : window.innerWidth < 1440 ? 3 : window.innerWidth < 1920 ? 4 : 5;
   var cards = [];
   for (var i = 0; i < Math.max(count, cols * 2); i++) {
     cards.push('<div class="skeleton-card"><div class="skeleton-card-img"></div><div class="skeleton-card-body"><div class="skeleton-line" style="width:85%"></div><div class="skeleton-line" style="width:55%"></div><div class="skeleton-tags"><div class="skeleton-tag"></div><div class="skeleton-tag"></div></div><div class="skeleton-line-sm" style="width:40%"></div><div class="skeleton-line-xs"></div><div class="skeleton-line-xs" style="width:90%"></div><div class="skeleton-line-xs" style="margin-top:auto"></div></div></div>');

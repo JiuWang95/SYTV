@@ -3552,10 +3552,13 @@ details[open] .invite-device-toggle::before {
     border: none;
     color: var(--color-text-secondary);
     cursor: pointer;
-    transition: color 0.15s ease;
+    transition: color 0.15s ease, transform 0.1s ease;
 }
 .movies-back-btn:hover {
     color: var(--color-primary);
+}
+.movies-back-btn:active {
+    transform: scale(0.92);
 }
 .movies-topbar-center {
     position: absolute;
@@ -3566,18 +3569,72 @@ details[open] .invite-device-toggle::before {
     max-width: 70%;
     pointer-events: none;
 }
+/* 标题行：搜索图标 + 关键词 */
+.movies-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-width: 0;
+}
+.movies-title-icon {
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+    color: var(--color-primary);
+    opacity: 0.9;
+}
 .movies-title {
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     font-weight: 600;
+    letter-spacing: 0.01em;
     color: #f3f4f6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+/* 副标题行：状态点 + 文案 */
+.movies-subtitle-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-top: 0.15rem;
+    min-width: 0;
+    max-width: 100%;
+}
 .movies-subtitle {
     font-size: 0.68rem;
     color: var(--color-text-tertiary);
-    margin-top: 0.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* 搜索状态点：加载(粉脉冲) / 分类兜底(琥珀脉冲) / 空(红) / 有结果(绿) */
+.movies-status-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--color-text-tertiary);
+}
+.movies-status-dot[data-mode="loading"] {
+    background: var(--color-primary);
+    animation: moviesDotPulse 1.2s ease-in-out infinite;
+}
+.movies-status-dot[data-mode="fallback"] {
+    background: #f59e0b;
+    animation: moviesDotPulse 1.2s ease-in-out infinite;
+}
+.movies-status-dot[data-mode="empty"] {
+    background: #ef4444;
+}
+.movies-status-dot[data-mode="search"] {
+    background: #22c55e;
+}
+@keyframes moviesDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.45; transform: scale(0.8); }
 }
 .movies-topbar-spacer {
     width: 2.25rem;
@@ -3682,6 +3739,39 @@ details[open] .invite-device-toggle::before {
     gap: 0.75rem;
 }
 
+/* 网格列数按设备宽度自适应：无侧栏 <768 1-2 列；有侧栏 ≥768 2-5 列 */
+@media (max-width: 639px) {
+    .movies-results-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+@media (min-width: 640px) and (max-width: 767px) {
+    .movies-results-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+/* 768-1023 已启用左侧源栏，主区收窄 → 2 列保证卡片可读 */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .movies-results-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1024px) and (max-width: 1439px) {
+    .movies-results-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1440px) and (max-width: 1919px) {
+    .movies-results-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1920px) {
+    .movies-results-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
 /* 空态 */
 .movies-empty {
     grid-column: 1 / -1;
@@ -3738,8 +3828,8 @@ details[open] .invite-device-toggle::before {
     margin-bottom: 0.5rem;
 }
 
-/* 移动端/竖屏：源列表在顶部横向排列，无面板框架，与类别页标签一致 */
-@media (max-width: 1023px) {
+/* 移动端/窄屏（<768px，未达到能放下 3 列的宽度）：源列表在顶部横向排列，无面板框架，与类别页标签一致 */
+@media (max-width: 767px) {
     .movies-page-layout {
         padding: 0 0.75rem 2rem;
     }
@@ -3789,15 +3879,16 @@ details[open] .invite-device-toggle::before {
     .movies-source-item.active .movies-source-count {
         background: rgba(255, 255, 255, 0.25);
     }
-    .movies-results-grid {
-        grid-template-columns: minmax(0, 1fr);
-    }
     .movies-topbar {
         height: 2.75rem;
         margin-bottom: 0.75rem;
     }
     .movies-title {
         font-size: 0.95rem;
+    }
+    .movies-title-icon {
+        width: 0.85rem;
+        height: 0.85rem;
     }
 }
 
