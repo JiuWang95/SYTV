@@ -127,6 +127,24 @@ async function applyFilter(results) {
     });
 }
 
+// 循环水波纹加载反馈：从点击位置注入 3 个错峰波纹环（配合卡片按压缩放）
+function addCardRipple(el, e) {
+    const rect = el.getBoundingClientRect();
+    const rx = e.clientX - rect.left;
+    const ry = e.clientY - rect.top;
+    const size = Math.max(rect.width, rect.height) * 2;
+    for (let i = 0; i < 3; i++) {
+        const ripple = document.createElement('span');
+        ripple.className = 'card-ripple';
+        ripple.style.width = size + 'px';
+        ripple.style.height = size + 'px';
+        ripple.style.left = (rx - size / 2) + 'px';
+        ripple.style.top = (ry - size / 2) + 'px';
+        ripple.style.animationDelay = (i * 0.4) + 's'; // 3 环错峰覆盖 1.2s 周期
+        el.appendChild(ripple);
+    }
+}
+
 function setupEventListeners() {
     const searchInput = document.getElementById('searchInput');
 
@@ -417,11 +435,15 @@ function setupEventListeners() {
                 const source = el.dataset.source;
                 if (id && name && source) {
                     // 清除其他卡片的加载状态与未触发的跳转定时器（防止快速连点跳错片）
-                    document.querySelectorAll('.search-result-card.card-loading').forEach(c => c.classList.remove('card-loading'));
+                    document.querySelectorAll('.search-result-card.card-loading').forEach(function (c) {
+                        c.classList.remove('card-loading');
+                        c.querySelectorAll('.card-ripple').forEach(function (r) { r.remove(); });
+                    });
                     if (_pendingPlayDirectTimer) clearTimeout(_pendingPlayDirectTimer);
-                    // 给当前点击卡片添加流星动画
+                    // 给当前点击卡片添加加载状态（按压缩放），并注入水波纹反馈
                     el.classList.add('card-loading');
-                    // 流星动画无限循环展示，确保用户看到反馈后再跳转播放页。
+                    addCardRipple(el, e);
+                    // 动画期间先展示反馈再跳转播放页。
                     // iOS Safari 若立即跳转会跳过中间渲染帧，动画完全不可见。
                     _pendingPlayDirectTimer = setTimeout(function () {
                         _pendingPlayDirectTimer = null;
