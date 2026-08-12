@@ -66,9 +66,15 @@ function showError(message) {
     if (backBtn) {
         if (backUrl) {
             backBtn.style.display = 'inline-block';
-            backBtn.onclick = function () {
-                localStorage.removeItem('lastSearchPage');
-                window.location.href = backUrl;
+            backBtn.onclick = function (e) {
+                // 复用 goHome：哨兵感知的历史返回（bfcache 秒回），无哨兵时回退精确来源地址
+                if (typeof goHome === 'function') {
+                    goHome(e);
+                } else {
+                    localStorage.removeItem('lastSearchPage');
+                    try { sessionStorage.removeItem('leletv_player_from_tab'); } catch (err) { /* 忽略 */ }
+                    window.location.replace(backUrl);
+                }
             };
         } else {
             backBtn.style.display = 'none';

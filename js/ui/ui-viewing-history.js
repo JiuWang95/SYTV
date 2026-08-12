@@ -291,9 +291,16 @@ async function playFromHistory(url, title, episodeIndex, playbackPosition = 0) {
             playerUrl = playUrl.toString();
         }
 
+        // 站内同标签页导航标记：播放页返回时据此走 history.back()（见 js/player/player.js goHome）
+        try {
+            sessionStorage.setItem('leletv_player_from_tab', '1');
+        } catch (e) { /* 忽略 */ }
         window.location.href = playerUrl;
     } catch (e) {
         const simpleUrl = `player.html?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&index=${episodeIndex}`;
+        try {
+            sessionStorage.setItem('leletv_player_from_tab', '1');
+        } catch (err) { /* 忽略 */ }
         window.location.href = simpleUrl;
     }
 }

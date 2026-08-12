@@ -27,21 +27,22 @@ async function buildApiParamsAndFetch(id, sourceCode) {
     }
 }
 
-// 构建播放页返回地址：搜索结果页/结果页回对应 URL，否则优先最近浏览页（类别/历史记录），兜底首页
+// 构建播放页返回地址：直接取当前页完整 URL（含 hash 与查询参数），保证返回精确回到点击来源页
 function buildPlayerBackUrl() {
-    // 搜索结果页 / 影片结果页：返回时回到原 URL（保留 hash，如 #movies，配合缓存秒开恢复）
-    const path = window.location.pathname;
-    if (path.startsWith('/s=') || window.location.search.startsWith('?s=')) {
-        return window.location.origin + path + window.location.search + window.location.hash;
-    }
-    let backUrl = window.location.origin + '/index.html';
     try {
-        const lastBrowsed = sessionStorage.getItem('leletv_last_browsed_page');
-        if (lastBrowsed && lastBrowsed.startsWith('#')) {
-            backUrl += lastBrowsed;
-        }
+        return window.location.href;
+    } catch (e) {
+        return window.location.origin + '/index.html';
+    }
+}
+
+// 跳转播放页前写入哨兵：标记本次为站内同标签页导航。
+// 播放页返回时据此决定走 history.back()（历史栈紧邻条目必为来源页，可命中 bfcache 秒回）
+function navigateToPlayer(playerUrl) {
+    try {
+        sessionStorage.setItem('leletv_player_from_tab', '1');
     } catch (e) { /* 忽略 sessionStorage 不可用 */ }
-    return backUrl;
+    window.location.href = playerUrl;
 }
 
 // 点击搜索结果直接跳转播放器（立即跳转，不等待API响应）
@@ -71,7 +72,7 @@ async function playDirectly(id, vod_name, sourceCode) {
     if (typeof cacheSearchContext === 'function') cacheSearchContext();
     const backUrl = buildPlayerBackUrl();
     if (backUrl) playerUrl += `&back=${encodeURIComponent(backUrl)}`;
-    window.location.href = playerUrl;
+    navigateToPlayer(playerUrl);
 }
 
 // 显示详情 - 修改为支持自定义API
@@ -208,7 +209,7 @@ function playVideo(url, vod_name, sourceCode, episodeIndex = 0, vodId = '') {
         console.error('保存播放状态失败:', e);
     }
 
-    window.location.href = playerUrl;
+    navigateToPlayer(playerUrl);
 }
 
 // 播放上一集

@@ -1,5 +1,7 @@
-// 返回键：全屏时退出全屏，否则返回上一页
+// 返回键：全屏时退出全屏，否则返回来源页
+let returningFromPlayer = false; // 防止快速连点触发多次返回导航
 function goHome(event) {
+    if (returningFromPlayer) return;
     if (event) event.preventDefault();
 
     if (art && art.fullscreen) {
@@ -14,34 +16,48 @@ function goHome(event) {
         return;
     }
 
-    // 优先返回来源页：走浏览器历史返回（可命中 bfcache 快照恢复，秒回且保留页面状态）
-    // 若历史返回无效（播放页在历史栈中没有前一条目），则由兜底定时器跳转 back 参数
     const urlParams = new URLSearchParams(window.location.search);
     const backUrl = urlParams.get('back');
 
+    // 读取并清除哨兵：判断本页是否由站内同标签页导航进入。
+    // 播放页内的切集/切源均用 replaceState / location.replace，不新增历史条目，
+    // 因此历史栈紧邻条目必为来源页，history.back() 一步即可返回并命中 bfcache 秒回
+    let fromSameTab = false;
+    try {
+        fromSameTab = sessionStorage.getItem('leletv_player_from_tab') === '1';
+        sessionStorage.removeItem('leletv_player_from_tab');
+    } catch (e) { /* 忽略 sessionStorage 不可用 */ }
+
     if (backUrl) {
         localStorage.removeItem('lastSearchPage');
-        if (window.history.length > 1) {
+        if (fromSameTab) {
             window.history.back();
         } else {
-            window.location.href = backUrl;
+            // 直接输入 URL / 新标签页打开：历史栈无前序条目，直接跳转精确来源地址
+            window.location.replace(backUrl);
         }
-        // 兜底：1.5 秒后仍停留在播放页，说明历史返回未生效，直接跳转 back 参数
-        setTimeout(() => {
-            if (document.getElementById('playerContainer')) {
-                window.location.replace(backUrl);
-            }
-        }, 1500);
     } else {
         window.location.href = '/index.html';
     }
 
-    // 兜底：5 秒后如果还在当前页，强制跳转首页
-    setTimeout(() => {
+    returningFromPlayer = true;
+
+    // 兜底定时器：返回导航提交（页面卸载/冻结）时 pagehide 触发并取消，避免双导航竞态
+    const fallbackTimer = setTimeout(() => {
+        if (document.getElementById('playerContainer')) {
+            window.location.replace(backUrl || '/index.html');
+        }
+    }, 1500);
+    const homeTimer = setTimeout(() => {
         if (document.getElementById('playerContainer')) {
             window.location.href = '/index.html';
         }
     }, TIMING.FALLBACK_NAVIGATION_DELAY);
+    window.addEventListener('pagehide', function onPageHide() {
+        clearTimeout(fallbackTimer);
+        clearTimeout(homeTimer);
+        window.removeEventListener('pagehide', onPageHide);
+    });
 }
 
 // 页面加载时保存当前播放状态
