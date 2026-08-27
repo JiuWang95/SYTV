@@ -122,6 +122,31 @@
         configurable: true
     });
 
+    // ==================== 自定义API信息查询 ====================
+
+    /**
+     * 全局 getCustomApiInfo — 供搜索/播放各模块跨 bundle 使用。
+     * 优先读取 window.customAPIs（由 js/api/api-config.js 注入），
+     * 缺失时从 localStorage 兜底，确保 APP/PLAYER 两个 bundle 都能工作。
+     * @param {string|number} customApiIndex
+     * @returns {object|null}
+     */
+    window.getCustomApiInfo = function getCustomApiInfo(customApiIndex) {
+        let list = window.customAPIs;
+        if (typeof list === 'undefined' || !Array.isArray(list)) {
+            try {
+                list = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+            } catch (e) {
+                list = [];
+            }
+        }
+        const index = parseInt(customApiIndex);
+        if (isNaN(index) || index < 0 || index >= list.length) {
+            return null;
+        }
+        return list[index];
+    };
+
     // 同步 PlayerManager
     Object.defineProperty(window.LeLeTV, 'player', {
         get: function () {
