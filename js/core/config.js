@@ -28,9 +28,9 @@ const API_SITES = {
         name: '百度资源', 
     },
 
-    moduzy: {
-        api: 'https://caiji.moduapi.cc/api.php/provide/vod',
-        name: '魔都资源', 
+    gszy: {
+        api: 'https://api.guangsuapi.com/api.php/provide/vod',
+        name: '光速资源', 
     },
     
     zy360: {
@@ -43,9 +43,9 @@ const API_SITES = {
         name: '暴风资源',
     },
 
-    dbzy: {
-        api: 'https://dbzy5.tv/api.php/provide/vod',
-        name: '豆瓣资源'
+    xlzy: {
+        api: 'https://api.xinlangapi.com/xinlangapi.php/provide/vod/',
+        name: '新浪资源'
     },
 
     zuid: {
@@ -53,14 +53,14 @@ const API_SITES = {
         name: '最大资源'
     },
     
-    wujin: {
-        api: 'https://api.wujinapi.me/api.php/provide/vod',
-        name: '无尽资源'
+    hhzy: {
+        api: 'https://hhzyapi.com/api.php/provide/vod',
+        name: '豪华资源'
     },
     
-    mtzy: {
-        api: 'https://caiji.maotaizy.cc/api.php/provide/vod/at/josn',
-        name: '茅台资源'
+    jpzy: {
+        api: 'https://hhzyapi.com/api.php/provide/vod',
+        name: '荐片资源'
     },
 
     lzzy: {
@@ -68,9 +68,9 @@ const API_SITES = {
         name: '量子资源'
     },
 
-    ikun: {
-        api: 'https://ikunzyapi.com/api.php/provide/vod',
-        name: 'iKun资源'
+    jszy: {
+        api: 'https://jszyapi.com/api.php/provide/vod',
+        name: '极速资源'
     },
     hnzy: {
         api: 'https://www.hongniuzy2.com/api.php/provide/vod/from/hnm3u8/at/json/',
@@ -93,7 +93,7 @@ const API_SITES = {
     },
     mdzy: {
         api: 'https://91md.me/api.php/provide/vod',
-        name: 'md资源',
+        name: '麻豆资源',
         hidden: true
     },
     kgzy: {
@@ -108,7 +108,22 @@ const API_SITES = {
     },
     lbzy: {
         api: 'https://lbapi9.com/api.php/provide/vod',
-        name: 'lb资源',
+        name: '乐播资源',
+        hidden: true
+    },
+    xjzy: {
+        api: 'https://www.xiangjiaozyw.com/api.php/provide/vod',
+        name: '香蕉资源',
+        hidden: true
+    },
+    hjzy: {
+        api: 'https://api.apilyzy.com/api.php/provide/vod',
+        name: '花椒资源',
+        hidden: true
+    },
+    ttzy: {
+        api: 'https://apittzy.com/api.php/provide/vod/',
+        name: '探探资源',
         hidden: true
     },
     

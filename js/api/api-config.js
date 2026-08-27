@@ -197,7 +197,8 @@ function refreshDataSources(hasUserSelected) {
     const currentTime = Date.now();
     const savedSelectedAPIs = localStorage.getItem('selectedAPIs') || '[]';
     const currentSelectedAPIs = JSON.parse(savedSelectedAPIs);
-    const allDataSources = Object.keys(API_SITES).filter(key => !API_SITES[key].hidden);
+    // 保留所有内置源（含隐藏源）与有效自定义源；仅剔除已不存在的源
+    const allDataSources = Object.keys(API_SITES);
     const updatedSelectedAPIs = currentSelectedAPIs.filter(api => 
         allDataSources.includes(api) || api.startsWith('custom_')
     );
