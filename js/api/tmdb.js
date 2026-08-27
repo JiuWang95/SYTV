@@ -11,7 +11,8 @@ const TMDB_STATE = {
   tvStatus: '',
   isLoaded: false,
   isLoading: false,
-  _genreExpanded: false
+  _genreExpanded: false,
+  _filtersCollapsed: null
 };
 
 // 类别页状态持久化（sessionStorage）：从播放页返回时恢复筛选/页码/滚动位置
@@ -246,6 +247,15 @@ function initTmdbCategory() {
   loadTmdbResults();
 }
 
+// 判断是否为手机横屏（窄高横向视口）
+function isMobileLandscape() {
+  try {
+    return window.matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+  } catch (e) {
+    return false;
+  }
+}
+
 function resetTmdbFilters() {
   TMDB_STATE.page = 1;
   TMDB_STATE.selectedGenre = null;
@@ -289,20 +299,28 @@ function renderTmdbFilters() {
   const container = document.getElementById('tmdb-filters');
   if (!container) return;
 
+  // 首次渲染时按是否手机横屏决定默认折叠（null = 未初始化）
+  if (TMDB_STATE._filtersCollapsed === null) {
+    TMDB_STATE._filtersCollapsed = isMobileLandscape();
+  }
+
   const type = TMDB_STATE.type;
   const isMovie = isMovieLike(type);
   const genres = GENRE_MAP[getEffectiveType(type)];
   const sortOptions = SORT_OPTIONS[type];
 
   container.innerHTML = `
-    <div class="tmdb-filter-section">
-      <div class="tmdb-filter-row">
+    <div class="tmdb-filter-section${TMDB_STATE._filtersCollapsed ? ' tmdb-filter-collapsed' : ''}">
+      <div class="tmdb-filter-row tmdb-type-row">
         <div class="tmdb-type-switch">
           <button class="tmdb-type-btn${type === 'movie' ? ' active' : ''}" data-type="movie">电影</button>
           <button class="tmdb-type-btn${type === 'tv' ? ' active' : ''}" data-type="tv">电视剧</button>
           <button class="tmdb-type-btn${type === 'anime' ? ' active' : ''}" data-type="anime">动漫</button>
           <button class="tmdb-type-btn${type === 'variety' ? ' active' : ''}" data-type="variety">综艺</button>
         </div>
+        <button class="tmdb-filter-collapse-btn" data-filter-toggle aria-label="${TMDB_STATE._filtersCollapsed ? '展开筛选' : '收起筛选'}" aria-expanded="${!TMDB_STATE._filtersCollapsed}" title="${TMDB_STATE._filtersCollapsed ? '展开筛选' : '收起筛选'}">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="tmdb-filter-btn-icon" aria-hidden="true"><path d="M0 4a2 2 0 0 1 2-2h20a2 2 0 0 1 1.386 3.414L15 13v6.5a1.5 1.5 0 0 1-2.2 1.32l-2-1.2A1.5 1.5 0 0 1 10 18.5V13L.614 5.414A2 2 0 0 1 0 4Z"/></svg>
+        </button>
       </div>
 
       <div class="tmdb-filter-row tmdb-genre-row">
@@ -393,6 +411,14 @@ function bindFilterTags() {
   if (!section) return;
 
   section.addEventListener('click', (e) => {
+    // 筛选区折叠/展开按钮（独立于 genre 标签）
+    const collapseBtn = e.target.closest('.tmdb-filter-collapse-btn');
+    if (collapseBtn) {
+      TMDB_STATE._filtersCollapsed = !TMDB_STATE._filtersCollapsed;
+      renderTmdbFilters();
+      return;
+    }
+
     const btn = e.target.closest('.tmdb-genre-btn');
     if (!btn) return;
 

@@ -1118,6 +1118,31 @@ body {
     }
 }
 
+/* 超窄屏（<400px，如 iPhone SE / 折叠屏）：进一步压缩卡片避免拥挤 */
+@media (max-width: 399px) {
+    .card-hover.search-result-card .search-card-img-container {
+        width: 90px;
+    }
+    .card-hover.search-result-card .card-content {
+        padding: 0.5rem 0.45rem;
+    }
+    .card-hover.search-result-card .card-content-header h3 {
+        font-size: 0.8125rem;
+        margin-bottom: 0.25rem;
+    }
+    .card-hover.search-result-card .card-content-tags span {
+        font-size: 0.65rem;
+        padding: 0.1rem 0.4rem;
+    }
+    .card-hover.search-result-card .card-content-footer {
+        padding-top: 0.375rem;
+    }
+    .card-hover.search-result-card .card-content-footer .source-label-tag {
+        font-size: 0.65rem;
+        padding: 0.1rem 0.4rem;
+    }
+}
+
 /* 针对搜索结果卡片修改网格布局以适应横向卡片 */
 @media (max-width: 640px) {
     #results {
@@ -1139,15 +1164,108 @@ body {
     }
 }
 
-@media (min-width: 1024px) and (max-width: 1919px) {
+@media (min-width: 1024px) and (max-width: 1439px) {
     #results {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
 }
 
-@media (min-width: 1920px) {
+/* 宽屏增列：1440+ / 1920+ 适配大屏，与 movies 页面的宽屏策略保持一致 */
+@media (min-width: 1440px) and (max-width: 1919px) {
     #results {
         grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    }
+}
+
+@media (min-width: 1920px) {
+    #results {
+        grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    }
+}
+
+/* ==================== 手机横屏小高度适配 ==================== */
+/* 窄高横屏（如手机横屏 ~375px 高）下所有卡片网格与顶部区统一紧凑化，
+   避免沿用竖屏大尺寸导致占屏过高、一屏可见内容过少。范围：orientation: landscape 且 max-height 500px */
+
+/* 搜索结果页顶部：压缩标题区、隐藏副标题、收紧搜索框，把垂直空间还给结果列表 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .home-layout.has-results header {
+        margin-bottom: 0.25rem;
+    }
+    .home-layout.has-results header > p {
+        display: none;
+        margin-bottom: 0;
+    }
+    .home-layout.has-results #titleContainer {
+        min-height: 56px;
+    }
+    .home-layout.has-results .home-search-bar.h-12 {
+        height: 40px;
+    }
+    .home-layout.has-results #resultsArea {
+        margin-top: 0.375rem;
+    }
+
+    /* 搜索结果卡（横向卡）：缩小封面、压缩内边距与字号，隐藏简介行 */
+    .card-hover.search-result-card {
+        min-height: 88px;
+    }
+    .card-hover.search-result-card .search-card-img-container {
+        width: 78px;
+    }
+    .card-hover.search-result-card .card-content {
+        padding: 0.4rem;
+    }
+    .card-hover.search-result-card .card-content-header h3 {
+        font-size: 0.8125rem;
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+    }
+    .card-hover.search-result-card .card-content-tags {
+        margin-bottom: 0.25rem;
+    }
+    .card-hover.search-result-card .card-content-tags span {
+        font-size: 0.625rem;
+        padding: 0.05rem 0.35rem;
+    }
+    .card-hover.search-result-card .card-content-synopsis {
+        display: none;
+    }
+
+    /* 结果网格：按宽度自适应列数（窄横屏自动降列、宽横屏充分利用宽度）*/
+    #results {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+        gap: 0.5rem !important;
+    }
+}
+
+/* 历史页横屏小高度：压缩卡片垂直占用，让一屏显示更多条 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .history-item {
+        margin-bottom: 6px;
+        border-radius: 8px;
+    }
+    .history-content {
+        padding: 8px 10px;
+        gap: 3px;
+    }
+    .history-title {
+        font-size: 0.875rem;
+    }
+    .history-meta-row {
+        gap: 3px;
+        margin-top: 4px;
+    }
+    .history-episode,
+    .history-source,
+    .history-episode-total {
+        font-size: 0.65rem;
+    }
+    .history-time {
+        font-size: 0.65rem;
+    }
+    .history-group-title {
+        margin-bottom: 6px;
     }
 }
 
@@ -1688,6 +1806,49 @@ html[data-init-page="movies"] #page-movies {
     color: #e2e8f0;
 }
 
+/* 筛选区折叠/展开按钮：放在类型切换按钮右侧 */
+.tmdb-filter-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25rem;
+    padding: 0.4rem;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--color-border-default);
+    border-radius: 9999px;
+    background: var(--color-surface-raised);
+    color: #a0aec0;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+.tmdb-filter-collapse-btn:hover {
+    border-color: #ec4899;
+    color: #fff;
+}
+.tmdb-filter-collapse-btn:active {
+    transform: scale(0.94);
+}
+.tmdb-filter-btn-icon {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+/* 类型行：类型切换按钮 + 筛选按钮横向排布，整体垂直居中对齐 */
+.tmdb-type-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+}
+
+/* 折叠状态：隐藏所有小分类板块行（类型行 + 筛选按钮保留） */
+.tmdb-filter-section.tmdb-filter-collapsed .tmdb-genre-row {
+    display: none;
+}
+
 /* 分类标签列表 */
 .tmdb-genre-list {
     display: flex;
@@ -1960,6 +2121,14 @@ html[data-init-page="movies"] #page-movies {
         gap: 0.5rem;
     }
 
+    /* 类型行保持横向：筛选按钮与 电影/电视剧/动漫/综艺 标签同排，不被 column 挤到下一行 */
+    .tmdb-filter-row.tmdb-type-row {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.375rem;
+        flex-wrap: nowrap;
+    }
+
     .tmdb-type-btn {
         padding: 0.375rem 1rem;
         font-size: 0.75rem;
@@ -1997,6 +2166,24 @@ html[data-init-page="movies"] #page-movies {
 
     .tmdb-card-overview {
         display: none;
+    }
+
+    /* 横屏窄高：进一步压缩卡片信息区，降低单卡高度，让每屏可见更多 */
+    .tmdb-card-title {
+        font-size: 0.75rem;
+        margin-bottom: 0.125rem;
+        line-height: 1.25;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .tmdb-card-year {
+        margin-bottom: 0.125rem;
+    }
+    .tmdb-card-meta {
+        margin-bottom: 0.125rem;
     }
 }
 
@@ -3402,7 +3589,7 @@ details[open] .invite-device-toggle::before {
 .readme-page-wrapper {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 4rem);
+    height: calc(100dvh - 4rem);
     max-width: 900px;
     margin: 0 auto;
     padding: 0 1rem;
@@ -3505,7 +3692,7 @@ details[open] .invite-device-toggle::before {
 
 /* ====== 影片结果页（左筛选 + 右网格，复用项目极光主题背景） ====== */
 .movies-page-layout {
-    min-height: 100vh;
+    min-height: 100dvh;
     padding: 0.75rem 1.5rem 2rem;
     background: transparent;
     min-width: 0;
@@ -3626,7 +3813,7 @@ details[open] .invite-device-toggle::before {
 .movies-sources-panel {
     position: sticky;
     top: 1rem;
-    max-height: calc(100vh - 6rem);
+    max-height: calc(100dvh - 6rem);
     overflow-y: auto;
     background: transparent;
     border: none;

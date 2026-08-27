@@ -85,7 +85,7 @@ body, html {
     width: 100% !important;
     height: 100% !important;
     min-height: 150px !important;
-    max-height: 100vh !important;
+    max-height: 100dvh !important;
     background: #000 !important;
     object-fit: contain !important;
     display: block !important;
