@@ -18,6 +18,11 @@
     <link rel="stylesheet" href="css/output.css?v=v3.3.7">
     <link rel="stylesheet" href="css/styles.css?v=v3.3.7">
 
+    <!-- 二级页面样式（分类/设置/邀请码管理/README/影片页）：非阻塞加载，不占用首屏关键渲染路径。
+         preload 让它在首屏渲染的同时并行下载，load 后转成正式样式表；禁用 JS 时走 noscript 回退。 -->
+    <link rel="preload" href="css/pages.css?v=v3.3.7" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/pages.css?v=v3.3.7"></noscript>
+
     <!-- Geist 字体 -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preload" href="/fonts/MapleMono-Italic.ttf" as="font" type="font/ttf" crossorigin>
@@ -104,8 +109,8 @@
     <link rel="icon" href="/image/logo-black.png" sizes="256x256">
     <link rel="icon" href="/image/logo-black.png" sizes="384x384">
 
-    <!-- marked.js: Markdown 渲染 -->
-    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js?v=v3.3.7"></script>
+    <!-- marked.js: Markdown 渲染（仅 README 弹窗使用，defer 避免阻塞首屏解析） -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js?v=v3.3.7" defer></script>
 </head>
 <body class="page-bg text-white">
     <!-- Aurora 极光背景 -->
@@ -694,6 +699,7 @@
     <script>
         window._jsSha256 = window.sha256;
     </script>
+
 
 
 

@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   '/css/output.css',
   '/css/styles.css',
   '/css/variables.css',
+  '/css/pages.css',
 ];
 
 // 最大缓存条目数限制
