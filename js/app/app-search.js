@@ -203,15 +203,21 @@ function setupEventListeners() {
                 e.stopPropagation();
                 const query = deleteBtn.dataset.query;
                 if (query) {
-                    deleteSingleSearchHistory(query);
-                    showSearchHistory(document.getElementById('searchInput').value);
+                    // 先让该条历史化作粒子消散，播完再删除并重渲染
+                    dissolveThenRemove(deleteBtn.closest('.search-history-item'), function () {
+                        deleteSingleSearchHistory(query);
+                        showSearchHistory(document.getElementById('searchInput').value);
+                    });
                 }
                 return;
             }
 
             if (clearBtn) {
                 e.stopPropagation();
-                clearSearchHistory();
+                // 整块历史列表一起化作粒子消散，播完再清空
+                dissolveThenRemove(clearBtn.closest('#searchHistoryDropdown'), function () {
+                    clearSearchHistory();
+                });
                 return;
             }
 
@@ -287,16 +293,22 @@ function setupEventListeners() {
                 e.stopPropagation();
                 const query = deleteBtn.dataset.query;
                 if (query) {
-                    deleteSingleSearchHistory(query);
-                    renderMobileSearchHistory(mobileSearchInput ? mobileSearchInput.value : '');
+                    // 先让该条历史化作粒子消散，播完再删除并重渲染
+                    dissolveThenRemove(deleteBtn.closest('.search-history-item'), function () {
+                        deleteSingleSearchHistory(query);
+                        renderMobileSearchHistory(mobileSearchInput ? mobileSearchInput.value : '');
+                    });
                 }
                 return;
             }
 
             if (clearBtn) {
                 e.stopPropagation();
-                clearSearchHistory();
-                renderMobileSearchHistory('');
+                // 整块历史列表一起化作粒子消散，播完再清空
+                dissolveThenRemove(clearBtn.closest('.mobile-search-history-list'), function () {
+                    clearSearchHistory();
+                    renderMobileSearchHistory('');
+                });
                 return;
             }
 
@@ -425,7 +437,12 @@ function setupEventListeners() {
             case 'accept-disclaimer': closeDisclaimerModal(); break;
             case 'select-all-apis': selectAllAPIs(true); break;
             case 'deselect-all-apis': selectAllAPIs(false); break;
-            case 'reset-apis': resetDataSourceLogic(); break;
+            case 'reset-apis': {
+                // 重置后固定回到正常域默认源（360/暴风/最大/量子/红牛）；隐藏域保持原有随机逻辑
+                resetDataSourceLogic();
+                if (typeof applyDefaultNormalSources === 'function') applyDefaultNormalSources();
+                break;
+            }
             case 'show-add-custom-api': showAddCustomApiForm(); break;
             case 'add-custom-api': addCustomApi(); break;
             case 'cancel-add-custom-api': cancelAddCustomApi(); break;
@@ -457,7 +474,15 @@ function setupEventListeners() {
                 break;
             }
             case 'edit-custom-api': editCustomApi(parseInt(el.dataset.index)); break;
-            case 'remove-custom-api': removeCustomApi(parseInt(el.dataset.index)); break;
+            case 'remove-custom-api': {
+                // 先让该条自定义 API 化作粒子消散，播完再真正移除
+                // （条目是 #customApisList 的直接子 div，无需在渲染处加类名）
+                const removeApiIndex = parseInt(el.dataset.index);
+                dissolveThenRemove(el.closest('#customApisList > div'), function () {
+                    removeCustomApi(removeApiIndex);
+                });
+                break;
+            }
             case 'update-custom-api': updateCustomApi(parseInt(el.dataset.index)); break;
             case 'cancel-edit-custom-api': cancelEditCustomApi(); break;
             case 'load-tmdb-results': loadTmdbResults(); break;
@@ -475,7 +500,8 @@ function setupEventListeners() {
                 const itemTitle = el.dataset.title;
                 if (itemUrl) {
                     event.stopPropagation();
-                    deleteHistoryItem(itemUrl, itemTitle);
+                    // 传入所在卡片：先播粒子消散，播完再删除并重渲染
+                    deleteHistoryItem(itemUrl, itemTitle, el.closest('.history-item'));
                 }
                 break;
             }

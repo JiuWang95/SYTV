@@ -127,12 +127,14 @@ function _particleColorTable() {
   return table;
 }
 
-// 采样：在卡片区域按网格生成粒子种子，记录"卡片内位置 → 向上飘散终点"、延迟、寿命与摆动参数。
-// 消散沿 from→to 播放，逆向回收沿 to→from 播放 —— 同一组种子即"倒放"。
-function _particleSeeds(cards) {
+// 采样：在元素区域按网格生成粒子种子，记录"元素内位置 → 向上飘散终点"、延迟、寿命与摆动参数。
+// duration / riseBase 可覆盖：删除单项这类小场景用更短时长、更低的飘散高度。
+function _particleSeeds(elements, duration, riseBase) {
+  var total = duration || PARTICLE_SWEEP_MS;
+  var baseRise = riseBase || PARTICLE_RISE;
   var boxes = [];
-  cards.forEach(function (card) {
-    var r = card.getBoundingClientRect();
+  elements.forEach(function (element) {
+    var r = element.getBoundingClientRect();
     if (r.width > 8 && r.height > 8) boxes.push(r);
   });
   if (!boxes.length) return [];
@@ -140,6 +142,7 @@ function _particleSeeds(cards) {
   var area = 0;
   boxes.forEach(function (r) { area += r.width * r.height; });
   var step = PARTICLE_SWEEP_STEP;
+  if (area < 90000) step = 4; // 小区域（历史条目、下拉项…）采样更细，保证粒子密度
   while (area / (step * step) > PARTICLE_MAX && step < 26) step += 1;
 
   var seeds = [];
@@ -148,14 +151,14 @@ function _particleSeeds(cards) {
       for (var x = r.left + step / 2; x < r.right; x += step) {
         // 越靠上的粒子飘散距离越短，接近"被上方气流抽走的尘埃"
         var depth = (y - r.top) / (r.height || 1);
-        var rise = PARTICLE_RISE * (0.45 + 0.85 * (1 - depth)) * (0.55 + Math.random() * 0.9);
+        var rise = baseRise * (0.45 + 0.85 * (1 - depth)) * (0.55 + Math.random() * 0.9);
         seeds.push({
           fx: x,
           fy: y,
           tx: x + (Math.random() - 0.5) * 30,
           ty: y - rise,
-          delay: Math.random() * PARTICLE_SWEEP_MS * 0.22,
-          life: PARTICLE_SWEEP_MS * (0.5 + Math.random() * 0.35),
+          delay: Math.random() * total * 0.22,
+          life: total * (0.5 + Math.random() * 0.35),
           amp: 1.2 + Math.random() * 3.2,  // 水平摆动幅度
           freq: 0.6 + Math.random() * 1.5, // 摆动频率
           phase: Math.random() * Math.PI * 2,
@@ -269,6 +272,68 @@ function playParticleDissolve(onDone) {
       finish();
     }
   }, PARTICLE_SWEEP_MS + 900);
+}
+
+// ===================== 通用：元素粒子消散（删除场景复用） =====================
+var DISSOLVE_ITEM_MS = 520;    // 单项删除的消散时长（比整页切换更快）
+var DISSOLVE_ITEM_RISE = 38;   // 单项删除的飘散高度基准（px）
+
+// 把元素"化作粒子"向上飘散，元素同步淡出；动画结束（或超时兜底）后回调，
+// 由调用方在回调里真正删除数据 / 重渲染列表 —— 删除场景统一走这里
+function dissolveElement(el, onDone) {
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    if (typeof onDone === 'function') onDone();
+  }
+
+  if (!el || typeof el.getBoundingClientRect !== 'function' || _particleReducedMotion()) { finish(); return; }
+
+  var seeds = _particleSeeds([el], DISSOLVE_ITEM_MS, DISSOLVE_ITEM_RISE);
+  var view = seeds.length ? _particleNewCanvas() : null;
+  if (!view) { finish(); return; }
+
+  // 元素同步淡出，与粒子飘散配合
+  el.style.transition = 'opacity ' + Math.round(DISSOLVE_ITEM_MS * 0.6) + 'ms ease';
+  el.style.opacity = '0';
+
+  var ctx = view.ctx;
+  var start = _particleNow();
+
+  function frame(now) {
+    var elapsed = now - start;
+    _particleUpdate(seeds, elapsed, false);
+    _particlePaint(ctx, seeds);
+    if (elapsed < DISSOLVE_ITEM_MS) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    _particleDropCanvas(view.canvas);
+    el.style.transition = '';
+    el.style.opacity = '';
+    finish();
+  }
+  requestAnimationFrame(frame);
+
+  // 兜底：后台标签页 rAF 暂停时也要保证删除继续执行
+  setTimeout(function () {
+    if (!finished) {
+      _particleDropCanvas(view.canvas);
+      el.style.transition = '';
+      el.style.opacity = '';
+      finish();
+    }
+  }, DISSOLVE_ITEM_MS + 600);
+}
+
+// 删除动作的统一入口：有元素就先播消散，播完再执行删除；元素缺失/降级时直接删除
+function dissolveThenRemove(el, action) {
+  if (!el || typeof dissolveElement !== 'function') {
+    if (typeof action === 'function') action();
+    return;
+  }
+  dissolveElement(el, action);
 }
 
 // 设置页内容初态：先写内联样式、再摘掉 CSS 首帧隐藏属性，保证交接过程不闪

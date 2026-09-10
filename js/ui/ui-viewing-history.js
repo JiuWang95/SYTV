@@ -162,28 +162,38 @@ function renderHistoryCard(item) {
     `;
 }
 
-function deleteHistoryItem(encodedUrl) {
-    try {
-        // 解码URL
-        const url = decodeURIComponent(encodedUrl);
+function deleteHistoryItem(encodedUrl, title, cardEl) {
+    // 真正的删除：数据落盘 + 重渲染列表
+    const removeRecord = () => {
+        try {
+            // 解码URL
+            const url = decodeURIComponent(encodedUrl);
 
-        // 获取当前历史记录
-        const history = getViewingHistory();
+            // 获取当前历史记录
+            const history = getViewingHistory();
 
-        // 过滤掉要删除的项
-        const newHistory = history.filter(item => item.url !== url);
+            // 过滤掉要删除的项
+            const newHistory = history.filter(item => item.url !== url);
 
-        // 保存回localStorage
-        localStorage.setItem(scopedKey('viewingHistory'), JSON.stringify(newHistory));
+            // 保存回localStorage
+            localStorage.setItem(scopedKey('viewingHistory'), JSON.stringify(newHistory));
 
-        // 重新加载历史记录显示
-        loadViewingHistory();
+            // 重新加载历史记录显示
+            loadViewingHistory();
 
-        // 显示成功提示
-        showToast('已删除该记录', 'success');
-    } catch (e) {
-        console.error('删除历史记录项失败:', e);
-        showToast('删除记录失败', 'error');
+            // 显示成功提示
+            showToast('已删除该记录', 'success');
+        } catch (e) {
+            console.error('删除历史记录项失败:', e);
+            showToast('删除记录失败', 'error');
+        }
+    };
+
+    // 先让该条记录化作粒子消散，播完再真正删除（缺元素或播放页等降级场景直接删）
+    if (cardEl && typeof dissolveThenRemove === 'function') {
+        dissolveThenRemove(cardEl, removeRecord);
+    } else {
+        removeRecord();
     }
 }
 

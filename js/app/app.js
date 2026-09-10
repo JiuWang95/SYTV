@@ -11,6 +11,29 @@ let _lastAllResults = [];
 // 搜索框就绪标志，初始化期间不响应任何事件
 let _searchReady = false;
 
+// ====== 正常域默认数据源 ======
+// 新用户首次初始化与「重置」都固定选中这 5 个源：360 / 暴风 / 最大 / 量子 / 红牛
+var DEFAULT_NORMAL_SOURCES = ['zy360', 'bfzy', 'zuid', 'lzzy', 'hnzy'];
+
+// 把选中源恢复为正常域默认（供「重置」调用；隐藏域维持原有随机逻辑不动）
+function applyDefaultNormalSources() {
+    if (typeof isHiddenContentMode === 'function' && isHiddenContentMode()) return false;
+    selectedAPIs = DEFAULT_NORMAL_SOURCES.filter(function (id) {
+        return typeof API_SITES !== 'undefined' && !!API_SITES[id];
+    });
+    try {
+        localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
+        localStorage.setItem('hasUserSelectedAPIs', 'false');
+    } catch (e) { /* 忽略：写入失败不影响本次会话内的选择 */ }
+    if (typeof initAPICheckboxes === 'function') initAPICheckboxes();
+    if (typeof updateSelectedApiCount === 'function') updateSelectedApiCount();
+    // 覆盖 resetDataSourceLogic 的通用提示，说明实际结果
+    if (typeof showToast === 'function') {
+        showToast('已重置为默认数据源：360 / 暴风 / 最大 / 量子 / 红牛', 'success');
+    }
+    return true;
+}
+
 // 过滤配置缓存
 let _filterConfig = null;
 
@@ -25,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 设置默认API选择（必须在 initAPICheckboxes 之前，否则复选框不同步）
     if (!localStorage.getItem('hasInitializedDefaults')) {
-        selectedAPIs = ["zuid", "wujin", "lzzy"];
+        // 正常域默认源：360 / 暴风 / 最大 / 量子 / 红牛
+        selectedAPIs = DEFAULT_NORMAL_SOURCES.slice();
         localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
         localStorage.setItem(PLAYER_CONFIG.adFilteringStorage, 'true');
         localStorage.setItem('hasInitializedDefaults', 'true');
