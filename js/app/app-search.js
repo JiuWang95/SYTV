@@ -69,8 +69,8 @@ function restoreSearchFromCache() {
     _lastAllResults = cached.results;
     _activeSourceFilter = cached.activeFilter || 'all';
 
-    // 填充搜索框
-    document.getElementById('searchInput').value = cached.keyword;
+    // 搜索框保持为空：避免残留关键词在下次打开搜索页/切换页面时被重复搜索
+    clearSearchInput();
 
     // 还原布局（与搜索完成后的状态一致）
     document.getElementById('searchArea').classList.remove('flex-1');
@@ -568,6 +568,22 @@ function hookInput() {
     input.value = '';
 }
 
+// 清空搜索框（桌面 + 移动端）：搜索完成后调用，避免残留关键词
+// 在下次打开搜索页或切换页面时被当作新搜索重复触发
+function clearSearchInput() {
+    const wasResetting = _resettingSearchArea;
+    _resettingSearchArea = true; // 抑制 hookInput 派发的 input 事件唤起搜索历史下拉
+    try {
+        const input = document.getElementById('searchInput');
+        if (input && input.value !== '') input.value = '';
+        const mobileInput = document.getElementById('mobileSearchInput');
+        if (mobileInput && mobileInput.value !== '') mobileInput.value = '';
+    } finally {
+        _resettingSearchArea = wasResetting;
+    }
+    if (!wasResetting) hideSearchHistory();
+}
+
 async function search() {
     // 关闭移动端覆盖层（如果有）
     closeMobileSearch();
@@ -781,8 +797,10 @@ async function search() {
                 document.getElementById('sourceFilterTabs').innerHTML = '';
             }
             hideLoading();
-            return;
         }
+
+        // 搜索流程结束：清空搜索框，避免残留关键词在下次打开搜索页/切换页面时被重复搜索
+        clearSearchInput();
 
     } catch (error) {
         console.error('搜索错误:', error);

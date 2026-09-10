@@ -199,8 +199,8 @@ function showMoviesResults(keyword, results, opts) {
     loading: false,
     epoch: _moviesEpoch
   };
-  var input = document.getElementById('searchInput');
-  if (input) input.value = keyword;
+  // 搜索框保持为空：避免残留关键词在下次打开搜索页/切换页面时被重复搜索
+  clearSearchInput();
   renderMoviesPageHeader();
   renderMoviesSidebar();
   renderMoviesGrid();
@@ -226,8 +226,8 @@ function openMoviesPage(keyword, opts) {
     loading: true,
     epoch: _moviesEpoch
   };
-  var input = document.getElementById('searchInput');
-  if (input) input.value = keyword;
+  // 搜索框保持为空：避免残留关键词在下次打开搜索页/切换页面时被重复搜索
+  clearSearchInput();
   renderMoviesPageHeader();
   renderMoviesSidebar();
   renderMoviesGrid();
@@ -375,8 +375,8 @@ function restoreMoviesFromCache(cached) {
     mode: 'search',
     loading: false
   };
-  var input = document.getElementById('searchInput');
-  if (input) input.value = cached.keyword;
+  // 搜索框保持为空：避免残留关键词在下次打开搜索页/切换页面时被重复搜索
+  clearSearchInput();
   renderMoviesPageHeader();
   renderMoviesSidebar();
   renderMoviesGrid();
