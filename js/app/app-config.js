@@ -105,7 +105,8 @@ async function exportConfig() {
         'customAPIs',
         'hiddenContentMode',
         'adFilteringEnabled',
-        'hasInitializedDefaults'
+        'hasInitializedDefaults',
+        'tmdbFilters'   // 分类页标签选择（下次进入分类页沿用）
     ];
 
     // 导出设置项（scoped 键按当前数据域读取，隐藏域导出的是 hidden:: 版本）

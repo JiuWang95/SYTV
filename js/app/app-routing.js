@@ -30,6 +30,9 @@ var PARTICLE_SWEEP_MS = 950;       // 消散时长（放慢：粒子悠长上飘
 var PARTICLE_SWEEP_STEP = 6;       // 采样步长基准（px）：越小粒子越细密
 var PARTICLE_MAX = 6000;           // 粒子总数上限：采样步长会按卡片面积自适应放宽
 var PARTICLE_RISE = 58;            // 向上飘散高度基准（px）
+var PARTICLE_WIND_X = 42;          // 风的水平推力（px，正值向右；越到后段推得越远）
+var PARTICLE_WIND_Y = -18;         // 风的上升分量（px，负值向上）
+var PARTICLE_GUST = 0.3;           // 阵风幅度：整体风力的周期性强弱（0 = 恒定风）
 var PARTICLE_ALPHA_STEPS = 32;     // 透明度量化档数（预生成颜色串，避免逐帧拼接字符串）
 var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题粉 + 高光白 + 浅灰
   { rgb: [236, 72, 153], weight: 0.55 },
@@ -155,13 +158,16 @@ function _particleSeeds(elements, duration, riseBase) {
         seeds.push({
           fx: x,
           fy: y,
-          tx: x + (Math.random() - 0.5) * 30,
+          tx: x + (Math.random() - 0.5) * 18, // 基础漂移（主位移交给"风"）
           ty: y - rise,
           delay: Math.random() * total * 0.22,
           life: total * (0.5 + Math.random() * 0.35),
-          amp: 1.2 + Math.random() * 3.2,  // 水平摆动幅度
+          amp: 1.2 + Math.random() * 3.2,  // 摆动幅度
           freq: 0.6 + Math.random() * 1.5, // 摆动频率
           phase: Math.random() * Math.PI * 2,
+          // 受风系数：轻重/阻力不同的尘埃被吹得远近不同；小场景（删除单项）按飘散高度等比缩小
+          wind: (0.55 + Math.random() * 1.1) * (baseRise / PARTICLE_RISE),
+          swirl: (Math.random() - 0.5) * 1.6, // 湍流强弱（有正有负，形成涡动）
           size: 0.9 + Math.random() * 1.3,
           color: _particlePickColor(),
           px: x,
@@ -174,16 +180,25 @@ function _particleSeeds(elements, duration, riseBase) {
   return seeds;
 }
 
-// 推进粒子：reverse=false 为消散（进度 0→1），true 为逆向回收（1→0），透明度与位移同步反演
+// 推进粒子：reverse=false 为消散（进度 0→1），true 为逆向回收（1→0），透明度与位移同步反演。
+// 消散叠加"风"：整体推力 + 个体受风系数 + 双频湍流摆 + 阵风 —— 看起来是被风吹散，而非直上直下
 function _particleUpdate(seeds, elapsed, reverse) {
+  // 阵风：所有粒子共用相位，才有"一阵风扫过"的整体感
+  var gust = 1 + PARTICLE_GUST * Math.sin(elapsed * 0.005);
   for (var i = 0; i < seeds.length; i++) {
     var s = seeds[i];
     var local = (elapsed - s.delay) / s.life;
     local = local < 0 ? 0 : (local > 1 ? 1 : local);
     var p = reverse ? 1 - local : local;
     var ease = 1 - Math.pow(1 - p, 3); // 起手像被抽离，尾部缓慢湮灭
-    s.px = s.fx + (s.tx - s.fx) * ease + Math.sin(s.phase + p * s.freq * 6.283) * s.amp * p;
-    s.py = s.fy + (s.ty - s.fy) * ease;
+    // 风压随进度加速（p²）：起手只是被掀起，越往后被吹得越远
+    var wind = PARTICLE_WIND_X * p * p * s.wind * gust;
+    var windY = PARTICLE_WIND_Y * p * p * s.wind * gust;
+    // 湍流：两层不同频率的正弦叠加，摆动不再规则
+    var sway = Math.sin(s.phase + p * s.freq * 6.283) * s.amp * p
+      + Math.sin(s.phase * 1.7 + p * s.freq * 2.4) * s.amp * 0.5 * s.swirl * p;
+    s.px = s.fx + (s.tx - s.fx) * ease + sway + wind;
+    s.py = s.fy + (s.ty - s.fy) * ease + windY;
     var a = 1 - p;
     s.alpha = a * a;
   }
@@ -334,6 +349,124 @@ function dissolveThenRemove(el, action) {
     return;
   }
   dissolveElement(el, action);
+}
+
+// ===================== 首次访问的首页入场 =====================
+var HOME_INTRO_FADE_MS = 340;   // 爆开后覆盖层淡出时长
+
+// 覆盖层背景：优先取页面背景色（含主题变量 --color-bg），取不到时用深色兜底，避免与首页有色差
+function _homeIntroBackground() {
+  function usable(v) {
+    return !!v && v !== 'rgba(0, 0, 0, 0)' && v !== 'transparent';
+  }
+  var bg = '';
+  try {
+    bg = window.getComputedStyle(document.body).backgroundColor || '';
+    if (!usable(bg)) bg = window.getComputedStyle(document.documentElement).backgroundColor || '';
+    if (!usable(bg)) {
+      bg = window.getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim() || '';
+    }
+  } catch (e) { /* 忽略 */ }
+  return usable(bg) ? bg : '#0b0b0d';
+}
+
+// 首次打开网站（或清除缓存后重开）时，在首页播"粒子凝聚成 LeLeTV → 爆开"的入场过渡：
+// 最上层盖一张不透明 canvas，动效结束后整层淡出，露出已渲染好的首页（为首页加载提供过渡）
+function playHomeIntro() {
+  if (_particleReducedMotion()) return;
+  // 仅在首页播放：带搜索直链 / 结果页 / 其它 hash 时不打扰
+  if (location.hash && location.hash !== '#home') return;
+  if (!document.getElementById('page-home')) return;
+
+  var view = _particleNewCanvas();
+  if (!view) return;
+
+  view.canvas.style.background = _homeIntroBackground();
+  view.canvas.style.transition = 'opacity ' + HOME_INTRO_FADE_MS + 'ms ease';
+
+  var ctx = view.ctx;
+  var center = _domainCenter();
+  var fontSize = Math.max(26, Math.min(window.innerWidth * 0.15, 82));
+  var brandRadius = fontSize * 1.5;   // 粒子凝聚半径：环绕字样形成环带
+  var ringStart = center.maxR * 0.55;
+  var particles = _domainParticles(brandRadius);
+  var start = 0;
+  var burstStart = DOMAIN_GATHER_MS + DOMAIN_HOLD_MS;
+  var began = false;
+  var finished = false;
+
+  function finish() {
+    if (finished) return;
+    finished = true;
+    view.canvas.style.opacity = '0'; // 整层淡出，露出首页
+    setTimeout(function () { _particleDropCanvas(view.canvas); }, HOME_INTRO_FADE_MS + 60);
+  }
+
+  // 等 MapleMono 就绪再起动画（避免用回退字体画出的字样与首页标题不一致），最多等 220ms
+  function begin() {
+    if (began) return;
+    began = true;
+    start = _particleNow();
+    requestAnimationFrame(frame);
+  }
+
+  function frame(now) {
+    var elapsed = now - start;
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    if (elapsed < DOMAIN_GATHER_MS) {
+      // 阶段一：粒子螺旋凝聚；环带与字样在后半段浮现
+      var t = elapsed / DOMAIN_GATHER_MS;
+      _domainUpdateGather(particles, elapsed, center);
+      _particlePaint(ctx, particles);
+      var reveal = Math.max(0, (t - 0.4) / 0.6);
+      var revealEase = 1 - Math.pow(1 - reveal, 3);
+      _domainDrawRing(ctx, center, ringStart + (brandRadius - ringStart) * revealEase, 0.55 * revealEase);
+      _domainDrawBrand(ctx, center, fontSize, 0.88 + 0.12 * revealEase, revealEase);
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    if (elapsed < burstStart) {
+      // 阶段二：成型停留
+      _domainUpdateGather(particles, DOMAIN_GATHER_MS * 2, center);
+      _particlePaint(ctx, particles);
+      _domainDrawRing(ctx, center, brandRadius, 0.55);
+      _domainDrawBrand(ctx, center, fontSize, 1, 1);
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    // 阶段三：爆开 → 覆盖层淡出，露出首页
+    var be = elapsed - burstStart;
+    var bt = Math.min(1, be / DOMAIN_BURST_MS);
+    _domainUpdateBurst(particles, be, center);
+    _particlePaint(ctx, particles);
+    _domainDrawRing(ctx, center, brandRadius + 220 * bt, 0.5 * (1 - bt));
+    _domainDrawBrand(ctx, center, fontSize, 1 + 0.35 * bt, 1 - bt);
+    if (bt < 1) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    finish();
+  }
+
+  try {
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('900 ' + fontSize + 'px "MapleMono"').then(begin).catch(begin);
+    }
+  } catch (e) { /* 忽略 */ }
+  setTimeout(begin, 220);
+
+  // 兜底：后台标签页 rAF 暂停时也要保证覆盖层最终消失，不能一直挡住首页
+  setTimeout(function () {
+    if (!began) {
+      finished = true;
+      _particleDropCanvas(view.canvas);
+      return;
+    }
+    finish();
+  }, burstStart + DOMAIN_BURST_MS + 1200);
 }
 
 // 设置页内容初态：先写内联样式、再摘掉 CSS 首帧隐藏属性，保证交接过程不闪
@@ -573,12 +706,44 @@ function switchPage(a) {
   if (location.hash !== h) location.hash = h; else showPage(a);
 }
 
+// ===================== 分类页标签选择持久化 =====================
+// 用户选的类型/题材/年份/排序等标签存到 localStorage（scoped：两个数据域各存一份），
+// 下次进入分类页沿用上次的标签；该键同时纳入设置数据的导出/导入
+var CATEGORY_FILTER_PREFS_KEY = 'tmdbFilters';
+var CATEGORY_FILTER_FIELDS = ['type', 'selectedGenre', 'selectedYear', 'selectedSort',
+  'voteRating', 'originalLanguage', 'originCountry', 'tvStatus'];
+
+// 落盘当前标签选择
+function saveCategoryFilterPrefs() {
+  try {
+    if (typeof TMDB_STATE === 'undefined' || !TMDB_STATE) return;
+    var payload = {};
+    CATEGORY_FILTER_FIELDS.forEach(function (k) {
+      if (k in TMDB_STATE) payload[k] = TMDB_STATE[k];
+    });
+    localStorage.setItem(scopedKey(CATEGORY_FILTER_PREFS_KEY), JSON.stringify(payload));
+  } catch (e) { /* 忽略：存储不可用不影响浏览 */ }
+}
+
+// 进入分类页前：本会话没有浏览状态时，把上次的标签注入会话状态，
+// 交由 tmdb.js 的 restoreTmdbState() 恢复（不多发请求，也不改它的重置逻辑）
+function seedCategoryFiltersFromPrefs() {
+  try {
+    if (typeof TMDB_STATE_KEY === 'undefined') return;
+    if (sessionStorage.getItem(TMDB_STATE_KEY)) return; // 会话内已浏览过：以当前会话状态为准
+    var raw = localStorage.getItem(scopedKey(CATEGORY_FILTER_PREFS_KEY));
+    if (!raw) return;
+    sessionStorage.setItem(TMDB_STATE_KEY, raw);
+  } catch (e) { /* 忽略 */ }
+}
+
 function handleHashChange() { showPage(location.hash.slice(1) || 'home'); }
 
 function showPage(n) {
-  // 离开类别页前保存滚动位置，供从播放页返回时恢复影片位置
+  // 离开类别页前保存滚动位置与标签选择（标签供下次进入时沿用）
   if (currentPage === 'category' && n !== 'category') {
     if (typeof saveTmdbScroll === 'function') saveTmdbScroll();
+    saveCategoryFilterPrefs();
   }
   currentPage = n;
   function _apply() {
@@ -615,7 +780,11 @@ function updateNavButtons(a) {
 
 function handlePageLoad(n) {
   switch(n) {
-    case 'category': if (typeof initTmdbCategory === 'function') initTmdbCategory(); break;
+    case 'category':
+      // 先按持久化的标签选择注入会话状态，再由 tmdb.js 统一恢复并加载
+      seedCategoryFiltersFromPrefs();
+      if (typeof initTmdbCategory === 'function') initTmdbCategory();
+      break;
     case 'history': if (typeof loadViewingHistory === 'function') loadViewingHistory(); break;
     case 'movies': if (typeof initMoviesPage === 'function') initMoviesPage(); break;
     case 'about': loadAboutPageChangelog(); break;
@@ -773,6 +942,13 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   AppInit.register('email-handler', AppInit.PHASES.POST, function() {
     if (typeof setupEmailClickHandlers === 'function') setupEmailClickHandlers();
+  });
+  AppInit.register('category-filter-persist', AppInit.PHASES.POST, function() {
+    // 点击分类页标签后应落盘（tmdb.js 会先更新 TMDB_STATE，这里等一拍再读）
+    document.addEventListener('click', function (e) {
+      if (!e.target || !e.target.closest || !e.target.closest('#tmdb-filters')) return;
+      setTimeout(saveCategoryFilterPrefs, 0);
+    });
   });
   AppInit.run();
 });

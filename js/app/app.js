@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem(PLAYER_CONFIG.adFilteringStorage, 'true');
         localStorage.setItem('hasInitializedDefaults', 'true');
         localStorage.setItem('dataSourceLogicVersion', 'v1');
+        // 首次访问（含清除缓存后重开）：首页播放"粒子凝聚成 LeLeTV → 爆开"的入场过渡
+        setTimeout(function () {
+            if (typeof playHomeIntro === 'function') playHomeIntro();
+        }, 150);
     }
 
     // 初始化API复选框
