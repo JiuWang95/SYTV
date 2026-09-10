@@ -2239,5 +2239,37 @@ body > header {
     font-family: 'Courier New', monospace;
 }
 
+/* ====== 数据域切换的过渡 ====== */
+/* 消散：设置页内容整体淡出 + 卡片化作细密粒子向上飘散（app-routing.js 的 canvas 粒子绘制）。
+   入场：本次加载来自切换时，先把整个设置页内容藏住，再由 JS 在"粒子凝聚成 LeLeTV → 爆开"之后整体淡入。
+   隐藏分两级，缺一不可：
+   ① data-init-page 由 <head> 内联脚本在首帧绘制前设置 —— 承接首帧隐藏。
+      只用 data-particle-in（defer 脚本设置）不够：defer 执行前浏览器可能已经画出一帧完整内容，
+      这就是"页面内容短暂蹦出来"的来源；
+   ② data-particle-in 由 defer 脚本设置 —— 路由初始化移除 data-init-page 后继续隐藏。
+   非过渡加载（手动刷新 / 直链打开设置页）由 JS 立即打上 data-domain-shown 放行；
+   后面的动画是兜底：万一 JS 没跑起来，1.6s 后也会自动显示，不会白屏 */
+html[data-init-page="settings"]:not([data-domain-shown]) #page-settings,
+html[data-particle-in] #page-settings {
+    opacity: 0;
+}
+
+html[data-init-page="settings"]:not([data-domain-shown]) #page-settings {
+    animation: domainPanelAutoShow 1ms linear 1.6s forwards;
+}
+
+@keyframes domainPanelAutoShow {
+    to { opacity: 1; }
+}
+
+/* 粒子过渡覆盖层：固定全屏、不拦事件，只做视觉表现 */
+.particle-transition-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    pointer-events: none;
+}
+
 
 

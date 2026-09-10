@@ -5,15 +5,502 @@ let currentPage = 'home';
 // 整页重载（如切换隐藏/正常内容模式）前记录目标页，重载后恢复到该页
 const RELOAD_RESUME_PAGE_KEY = 'leletv_reload_resume_page';
 
-// 记录重载后应停留的页面：同步 URL hash（重载后首帧直达与路由都落在该页），
-// 并用 sessionStorage 兜底（hash 缺失时仍能恢复）
+// 记录重载后应停留的页面：URL 只保留目标页 hash（丢掉搜索残留），并用 sessionStorage 兜底
 function rememberPageForReload(page) {
   try {
     sessionStorage.setItem(RELOAD_RESUME_PAGE_KEY, page);
-    if (location.hash !== '#' + page) {
-      history.replaceState(null, '', location.pathname + location.search + '#' + page);
-    }
+    // 只保留目标页 hash：清掉 /s=关键词 路径与 ?s= 查询串这类搜索残留，
+    // 否则重载后首页初始化会把上次搜索词当直链再搜一次、跳回结果页
+    var path = location.pathname || '/';
+    if (path.indexOf('/s=') === 0) path = '/';
+    history.replaceState(null, '', path + '#' + page);
   } catch (e) { /* 隐私模式等场景忽略：仅影响重载后的落点 */ }
+}
+
+// ===================== 数据域切换的过渡 =====================
+// 隐藏/正常模式切换需整页重载，为消除闪屏与加载弹窗：
+// 重载前——设置页内容整体淡出 + 卡片化作细密粒子向上飘散湮灭
+// （参考 Telegram 删除消息 / HarmonyOS 删除通知的消散）；
+// 重载后——粒子自随机位置螺旋向中心凝聚成 LeLeTV，成型后爆开，设置页内容整体淡入。
+// 隐藏范围是"整个设置页内容"：首帧靠 css 的 html[data-init-page="settings"] 规则（head 阶段即生效），
+// 之后由 html[data-particle-in] 接手，直到动效揭示完成。
+var PARTICLE_SWEEP_KEY = 'leletv_particle_sweep';
+var PARTICLE_CARD_SELECTOR = '#page-settings .dash-card';
+var PARTICLE_SWEEP_MS = 950;       // 消散时长（放慢：粒子悠长上飘，不再一闪而过）
+var PARTICLE_SWEEP_STEP = 6;       // 采样步长基准（px）：越小粒子越细密
+var PARTICLE_MAX = 6000;           // 粒子总数上限：采样步长会按卡片面积自适应放宽
+var PARTICLE_RISE = 58;            // 向上飘散高度基准（px）
+var PARTICLE_ALPHA_STEPS = 32;     // 透明度量化档数（预生成颜色串，避免逐帧拼接字符串）
+var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题粉 + 高光白 + 浅灰
+  { rgb: [236, 72, 153], weight: 0.55 },
+  { rgb: [255, 255, 255], weight: 0.25 },
+  { rgb: [226, 232, 240], weight: 0.2 }
+];
+
+// 重载后的入场：粒子自随机位置螺旋向中心凝聚成 LeLeTV（与首页标题同款的 MapleMono 玻璃质感字样），
+// 成型后爆开，再让设置页内容整体淡入。
+// 消散与入场都以"整个设置页内容"为整体目标（首帧经 css 的 data-init-page 规则隐藏，
+// 随后由 data-particle-in 接手，避免框架漏出来、再出卡片造成的闪现）。
+var DOMAIN_GATHER_MS = 680;      // 粒子螺旋凝聚 + 字样成形
+var DOMAIN_HOLD_MS = 140;        // 成型停留
+var DOMAIN_BURST_MS = 380;       // 爆开
+var DOMAIN_PARTICLE_MAX = 1500;  // 粒子数上限
+var DOMAIN_TEXT = 'LeLeTV';      // 中心字样（与首页标题一致）
+var REVEAL_DURATION_MS = 460;    // 爆开后设置页内容淡入时长
+var REVEAL_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+var _entranceStarted = false;
+
+// 本脚本在 defer 阶段执行：若本次加载来自数据域切换，先把设置页内容整体藏住
+// （首帧其实已由 css 的 html[data-init-page="settings"] 规则藏住，这里接手继续隐藏）
+var _particleIncoming = false;
+try { _particleIncoming = sessionStorage.getItem(PARTICLE_SWEEP_KEY) === '1'; } catch (e) { /* 忽略 */ }
+if (_particleIncoming) {
+  document.documentElement.setAttribute('data-particle-in', '1');
+  // 兜底：任何原因导致入场动画没启动，也不能让设置页一直不可见
+  setTimeout(function () {
+    if (!_entranceStarted) {
+      _resetPanel();
+    }
+  }, 3000);
+} else {
+  // 非过渡加载（手动刷新 / 直链打开设置页）：立刻放行首帧隐藏
+  document.documentElement.setAttribute('data-domain-shown', '1');
+}
+
+function _particleReducedMotion() {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+}
+
+function _particleCards() {
+  return Array.prototype.slice.call(document.querySelectorAll(PARTICLE_CARD_SELECTOR));
+}
+
+function _particleNewCanvas() {
+  var old = document.getElementById('particleTransitionCanvas');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var cv = document.createElement('canvas');
+  cv.id = 'particleTransitionCanvas';
+  cv.className = 'particle-transition-canvas';
+  cv.width = Math.max(1, Math.floor(w * dpr));
+  cv.height = Math.max(1, Math.floor(h * dpr));
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  var ctx = cv.getContext('2d');
+  if (!ctx) return null;
+  ctx.scale(dpr, dpr);
+  document.body.appendChild(cv);
+  return { ctx: ctx, canvas: cv };
+}
+
+function _particleDropCanvas(canvas) {
+  if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+}
+
+// 调色板随机取色（返回 PARTICLE_PALETTE 下标）
+function _particlePickColor() {
+  var r = Math.random();
+  var acc = 0;
+  for (var i = 0; i < PARTICLE_PALETTE.length; i++) {
+    acc += PARTICLE_PALETTE[i].weight;
+    if (r <= acc) return i;
+  }
+  return 0;
+}
+
+// 预生成 rgba 字符串（透明度量化 × 调色板）：粒子多时避免每帧拼接字符串造成 GC 抖动
+var _particleColorCache = null;
+function _particleColorTable() {
+  if (_particleColorCache) return _particleColorCache;
+  var table = [];
+  PARTICLE_PALETTE.forEach(function (p) {
+    var row = [];
+    for (var i = 0; i <= PARTICLE_ALPHA_STEPS; i++) {
+      row.push('rgba(' + p.rgb[0] + ',' + p.rgb[1] + ',' + p.rgb[2] + ',' + (i / PARTICLE_ALPHA_STEPS).toFixed(2) + ')');
+    }
+    table.push(row);
+  });
+  _particleColorCache = table;
+  return table;
+}
+
+// 采样：在卡片区域按网格生成粒子种子，记录"卡片内位置 → 向上飘散终点"、延迟、寿命与摆动参数。
+// 消散沿 from→to 播放，逆向回收沿 to→from 播放 —— 同一组种子即"倒放"。
+function _particleSeeds(cards) {
+  var boxes = [];
+  cards.forEach(function (card) {
+    var r = card.getBoundingClientRect();
+    if (r.width > 8 && r.height > 8) boxes.push(r);
+  });
+  if (!boxes.length) return [];
+
+  var area = 0;
+  boxes.forEach(function (r) { area += r.width * r.height; });
+  var step = PARTICLE_SWEEP_STEP;
+  while (area / (step * step) > PARTICLE_MAX && step < 26) step += 1;
+
+  var seeds = [];
+  boxes.forEach(function (r) {
+    for (var y = r.top + step / 2; y < r.bottom; y += step) {
+      for (var x = r.left + step / 2; x < r.right; x += step) {
+        // 越靠上的粒子飘散距离越短，接近"被上方气流抽走的尘埃"
+        var depth = (y - r.top) / (r.height || 1);
+        var rise = PARTICLE_RISE * (0.45 + 0.85 * (1 - depth)) * (0.55 + Math.random() * 0.9);
+        seeds.push({
+          fx: x,
+          fy: y,
+          tx: x + (Math.random() - 0.5) * 30,
+          ty: y - rise,
+          delay: Math.random() * PARTICLE_SWEEP_MS * 0.22,
+          life: PARTICLE_SWEEP_MS * (0.5 + Math.random() * 0.35),
+          amp: 1.2 + Math.random() * 3.2,  // 水平摆动幅度
+          freq: 0.6 + Math.random() * 1.5, // 摆动频率
+          phase: Math.random() * Math.PI * 2,
+          size: 0.9 + Math.random() * 1.3,
+          color: _particlePickColor(),
+          px: x,
+          py: y,
+          alpha: 1
+        });
+      }
+    }
+  });
+  return seeds;
+}
+
+// 推进粒子：reverse=false 为消散（进度 0→1），true 为逆向回收（1→0），透明度与位移同步反演
+function _particleUpdate(seeds, elapsed, reverse) {
+  for (var i = 0; i < seeds.length; i++) {
+    var s = seeds[i];
+    var local = (elapsed - s.delay) / s.life;
+    local = local < 0 ? 0 : (local > 1 ? 1 : local);
+    var p = reverse ? 1 - local : local;
+    var ease = 1 - Math.pow(1 - p, 3); // 起手像被抽离，尾部缓慢湮灭
+    s.px = s.fx + (s.tx - s.fx) * ease + Math.sin(s.phase + p * s.freq * 6.283) * s.amp * p;
+    s.py = s.fy + (s.ty - s.fy) * ease;
+    var a = 1 - p;
+    s.alpha = a * a;
+  }
+}
+
+function _particlePaint(ctx, seeds) {
+  ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+  var table = _particleColorTable();
+  for (var i = 0; i < seeds.length; i++) {
+    var s = seeds[i];
+    if (s.alpha <= 0.02) continue;
+    var idx = Math.round(s.alpha * PARTICLE_ALPHA_STEPS);
+    if (idx > PARTICLE_ALPHA_STEPS) idx = PARTICLE_ALPHA_STEPS;
+    ctx.fillStyle = table[s.color][idx];
+    ctx.fillRect(s.px, s.py, s.size, s.size);
+  }
+}
+
+function _particleNow() {
+  return (window.performance && performance.now) ? performance.now() : Date.now();
+}
+
+// 设置页内容容器：数据域切换的消散与入场都以它为整体目标（避免只藏卡片、框架漏出来）
+function _domainPanel() {
+  return document.getElementById('page-settings');
+}
+
+// 设置页内容复位：清除过渡期内联样式、首帧隐藏属性，并标记"已放行"（不再被首帧隐藏规则拦）
+function _resetPanel() {
+  var panel = _domainPanel();
+  if (panel) {
+    panel.style.transition = '';
+    panel.style.opacity = '';
+    panel.style.filter = '';
+  }
+  document.documentElement.removeAttribute('data-particle-in');
+  document.documentElement.setAttribute('data-domain-shown', '1');
+}
+
+// 重载前：卡片化作细密粒子向上飘散湮灭；动画结束或超时兜底后回调（用于触发 reload）
+function playParticleDissolve(onDone) {
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    if (typeof onDone === 'function') onDone();
+  }
+
+  var cards = _particleCards();
+  if (!cards.length || _particleReducedMotion()) { finish(); return; }
+
+  var seeds = _particleSeeds(cards);
+  var view = seeds.length ? _particleNewCanvas() : null;
+  if (!view) { finish(); return; }
+
+  // 标记本次过渡：重载后据此播放"凝聚"入场，并让新页面首帧先藏住设置页内容
+  try { sessionStorage.setItem(PARTICLE_SWEEP_KEY, '1'); } catch (e) { /* 忽略 */ }
+
+  // 设置页内容整体淡出（卡片随之一并消失），与粒子飘散配合：视觉上是"整个界面化作尘埃"
+  var panel = _domainPanel();
+  if (panel) {
+    panel.style.transition = 'opacity ' + Math.round(PARTICLE_SWEEP_MS * 0.6) + 'ms ease';
+    panel.style.opacity = '0';
+  }
+
+  var ctx = view.ctx;
+  var start = _particleNow();
+
+  function frame(now) {
+    var elapsed = now - start;
+    _particleUpdate(seeds, elapsed, false);
+    _particlePaint(ctx, seeds);
+    if (elapsed < PARTICLE_SWEEP_MS) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    _particleDropCanvas(view.canvas);
+    finish();
+  }
+  requestAnimationFrame(frame);
+
+  // 兜底：标签页在后台时 rAF 可能长时间不执行，保证最终一定继续重载
+  setTimeout(function () {
+    if (!finished) {
+      _particleDropCanvas(view.canvas);
+      finish();
+    }
+  }, PARTICLE_SWEEP_MS + 900);
+}
+
+// 设置页内容初态：先写内联样式、再摘掉 CSS 首帧隐藏属性，保证交接过程不闪
+function _panelInitialState() {
+  var panel = _domainPanel();
+  if (panel) {
+    panel.style.transition = 'none';
+    panel.style.opacity = '0';
+  }
+  document.documentElement.removeAttribute('data-particle-in');
+  void document.body.offsetHeight; // 强制一次样式计算，确保初态已被采纳，淡入才会真的过渡
+}
+
+// 设置页内容整体淡入（爆开之后），结束后清理内联样式
+function _revealPanel() {
+  var panel = _domainPanel();
+  if (!panel) { _resetPanel(); return; }
+  panel.style.transition = 'opacity ' + REVEAL_DURATION_MS + 'ms ' + REVEAL_EASING;
+  panel.style.opacity = '1';
+  setTimeout(function () { _resetPanel(); }, REVEAL_DURATION_MS + 80);
+}
+
+// 视口中心与对角线半径
+function _domainCenter() {
+  var hw = window.innerWidth / 2;
+  var hh = window.innerHeight / 2;
+  return { x: hw, y: hh, maxR: Math.sqrt(hw * hw + hh * hh) };
+}
+
+// 生成粒子：随机角度 + 随机起始半径（远离中心），螺旋收拢到字样外圈的小环带 → 即"星环"
+function _domainParticles(brandRadius) {
+  var c = _domainCenter();
+  var list = [];
+  for (var i = 0; i < DOMAIN_PARTICLE_MAX; i++) {
+    list.push({
+      a0: Math.random() * Math.PI * 2,
+      r0: c.maxR * (0.35 + Math.random() * 0.6),
+      r1: brandRadius * (0.7 + Math.random() * 0.6),
+      spin: (0.5 + Math.random() * 0.85) * (Math.random() < 0.5 ? -1 : 1),
+      size: 0.9 + Math.random() * 1.4,
+      color: _particlePickColor(),
+      delay: Math.random() * DOMAIN_GATHER_MS * 0.18,
+      a1: 0,
+      px: c.x,
+      py: c.y,
+      alpha: 0
+    });
+  }
+  return list;
+}
+
+// 聚集：半径由 r0 螺旋收拢到 r1（角度持续旋转，靠近中心时形成明亮的星环）
+function _domainUpdateGather(particles, elapsed, center) {
+  var span = Math.max(1, DOMAIN_GATHER_MS);
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var local = (elapsed - p.delay) / span;
+    local = local < 0 ? 0 : (local > 1 ? 1 : local);
+    var ease = 1 - Math.pow(1 - local, 3);
+    var r = p.r0 + (p.r1 - p.r0) * ease;
+    var ang = p.a0 + p.spin * Math.PI * 2.4 * (1 - Math.pow(1 - local, 2));
+    p.a1 = ang;
+    p.px = center.x + Math.cos(ang) * r;
+    p.py = center.y + Math.sin(ang) * r;
+    p.alpha = 0.12 + 0.88 * local;
+  }
+}
+
+// 爆开：自收拢半径快速向外扩散并湮灭
+function _domainUpdateBurst(particles, elapsed, center) {
+  var t = Math.min(1, elapsed / Math.max(1, DOMAIN_BURST_MS));
+  var ease = 1 - Math.pow(1 - t, 2);
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var ang = p.a1 + p.spin * Math.PI * 1.1 * ease;
+    var r = p.r1 + (p.r0 * 0.85 + 140) * ease;
+    p.px = center.x + Math.cos(ang) * r;
+    p.py = center.y + Math.sin(ang) * r;
+    var a = 1 - t;
+    p.alpha = a * a;
+  }
+}
+
+// 星环：中心向外的粉色光环（随聚集收缩、成型后稳定、爆开时扩散淡出）
+function _domainDrawRing(ctx, center, radius, alpha) {
+  if (alpha <= 0.01) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  var inner = Math.max(1, radius * 0.72);
+  var outer = Math.max(inner + 1, radius * 1.2);
+  var g = ctx.createRadialGradient(center.x, center.y, inner, center.x, center.y, outer);
+  g.addColorStop(0, 'rgba(236,72,153,0)');
+  g.addColorStop(0.55, 'rgba(236,72,153,0.42)');
+  g.addColorStop(1, 'rgba(236,72,153,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, outer, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// 中心字样：与首页标题同款（MapleMono + 玻璃白），额外叠一层粉色光晕
+function _domainDrawBrand(ctx, center, fontSize, scale, alpha) {
+  if (alpha <= 0.01) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(center.x, center.y);
+  ctx.scale(scale, scale);
+  ctx.font = '900 ' + fontSize + 'px "MapleMono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(236, 72, 153, 0.55)';
+  ctx.shadowBlur = 28;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.fillText(DOMAIN_TEXT, 0, 0);
+  ctx.shadowBlur = 0;
+  var grad = ctx.createLinearGradient(0, -fontSize * 0.6, 0, fontSize * 0.6);
+  grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+  grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.45)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0.18)');
+  ctx.fillStyle = grad;
+  ctx.fillText(DOMAIN_TEXT, 0, 0);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeText(DOMAIN_TEXT, 0, 0);
+  ctx.restore();
+}
+
+// 重载后：粒子自随机位置螺旋向中心凝聚成 LeLeTV → 爆开 → 设置页内容整体淡入
+function playDomainTransition() {
+  _entranceStarted = true;
+
+  var incoming = false;
+  try {
+    incoming = sessionStorage.getItem(PARTICLE_SWEEP_KEY) === '1';
+    if (incoming) sessionStorage.removeItem(PARTICLE_SWEEP_KEY);
+  } catch (e) { /* 忽略 */ }
+
+  if (!incoming || !_domainPanel() || _particleReducedMotion()) {
+    _resetPanel();
+    return;
+  }
+
+  // 设置页内容先按初态藏住（摘掉 data-particle-in 也不会闪），等爆开后再整体淡入
+  _panelInitialState();
+
+  var view = _particleNewCanvas();
+  if (!view) { _revealPanel(); return; }
+
+  var ctx = view.ctx;
+  var center = _domainCenter();
+  var fontSize = Math.max(26, Math.min(window.innerWidth * 0.15, 82));
+  var brandRadius = fontSize * 1.5;   // 粒子凝聚半径：环绕字样形成环带
+  var ringStart = center.maxR * 0.55;
+  var particles = _domainParticles(brandRadius);
+  var start = 0;
+  var burstStart = DOMAIN_GATHER_MS + DOMAIN_HOLD_MS;
+  var cardsStarted = false;
+  var began = false;
+
+  function startCards() {
+    if (cardsStarted) return;
+    cardsStarted = true;
+    _revealPanel();
+  }
+
+  // 等 MapleMono 就绪再起动画（避免用回退字体画出的字样与首页不一致），最多等 220ms
+  function begin() {
+    if (began) return;
+    began = true;
+    start = _particleNow();
+    requestAnimationFrame(frame);
+  }
+
+  function frame(now) {
+    var elapsed = now - start;
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+    if (elapsed < DOMAIN_GATHER_MS) {
+      // 阶段一：粒子螺旋聚集；星环与字样在后半段浮现
+      var t = elapsed / DOMAIN_GATHER_MS;
+      _domainUpdateGather(particles, elapsed, center);
+      _particlePaint(ctx, particles);
+      var reveal = Math.max(0, (t - 0.4) / 0.6);
+      var revealEase = 1 - Math.pow(1 - reveal, 3);
+      _domainDrawRing(ctx, center, ringStart + (brandRadius - ringStart) * revealEase, 0.55 * revealEase);
+      _domainDrawBrand(ctx, center, fontSize, 0.88 + 0.12 * revealEase, revealEase);
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    if (elapsed < burstStart) {
+      // 阶段二：成型停留
+      _domainUpdateGather(particles, DOMAIN_GATHER_MS * 2, center);
+      _particlePaint(ctx, particles);
+      _domainDrawRing(ctx, center, brandRadius, 0.55);
+      _domainDrawBrand(ctx, center, fontSize, 1, 1);
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    // 阶段三：爆开 → 设置界面浮现
+    var be = elapsed - burstStart;
+    var bt = Math.min(1, be / DOMAIN_BURST_MS);
+    _domainUpdateBurst(particles, be, center);
+    _particlePaint(ctx, particles);
+    _domainDrawRing(ctx, center, brandRadius + 220 * bt, 0.5 * (1 - bt));
+    _domainDrawBrand(ctx, center, fontSize, 1 + 0.35 * bt, 1 - bt);
+    if (bt > 0.2) startCards();
+
+    if (bt < 1) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    _particleDropCanvas(view.canvas);
+  }
+
+  // 字体就绪即起动画；兜底 220ms 起动画（字体加载慢时不让卡片一直空着）
+  try {
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('900 ' + fontSize + 'px "MapleMono"').then(begin).catch(begin);
+    }
+  } catch (e) { /* 忽略 */ }
+  setTimeout(begin, 220);
+
+  // 兜底：标签页在后台时 rAF 会暂停，保证界面最终一定会浮现
+  setTimeout(function () {
+    if (!cardsStarted) {
+      _particleDropCanvas(view.canvas);
+      startCards();
+    }
+  }, burstStart + DOMAIN_BURST_MS + 900);
 }
 
 function switchPage(a) {
@@ -46,7 +533,9 @@ function showPage(n) {
     handlePageLoad(n);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-  if (document.startViewTransition) {
+  // 粒子过渡（数据域切换重载）时跳过视图过渡：首帧直达已把设置页显示出来，
+  // 再叠一层 cross-fade 会与粒子汇聚打架
+  if (document.startViewTransition && !_particleIncoming) {
     document.startViewTransition(_apply);
   } else {
     _apply();
@@ -210,6 +699,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // 移除首帧直达标记（index.html 内联脚本设置），恢复由 active 类控制页面显示
     document.documentElement.removeAttribute('data-init-page');
     window.addEventListener('hashchange', handleHashChange);
+    // 本次重载的首帧已处理完毕：恢复正常视图过渡（后续切页照旧）
+    _particleIncoming = false;
+  });
+  AppInit.register('domain-transition', AppInit.PHASES.POST, function() {
+    // 等 showPage 的路由与数据源渲染落定后再播"星环 + LeLeTV"入场，避免刚渲染的卡片被立刻替换
+    setTimeout(playDomainTransition, 90);
   });
   AppInit.register('email-handler', AppInit.PHASES.POST, function() {
     if (typeof setupEmailClickHandlers === 'function') setupEmailClickHandlers();

@@ -372,8 +372,16 @@ function setupEventListeners() {
             // 数据域已切换：源/历史/自定义API都要按新域重新读取，重载最可靠
             // 重载后停留在设置页（开关所在页），避免回落到默认首页
             rememberPageForReload('settings');
-            showToast(wantHidden ? '已进入隐藏内容模式，正在载入…' : '已退出隐藏内容模式，正在载入…', 'info');
-            window.location.reload();
+            // 不沿用上次搜索：清掉搜索结果缓存（否则重载或返回时会恢复旧域的结果页）
+            try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch (err) { /* 忽略 */ }
+            // 动效期间锁住开关，避免重复触发切换
+            e.target.disabled = true;
+            // 过渡动效：卡片粒子消散 → 重载后粒子汇聚生成新页面（期间不出现加载弹窗/闪屏）
+            if (typeof playParticleDissolve === 'function') {
+                playParticleDissolve(function () { window.location.reload(); });
+            } else {
+                window.location.reload();
+            }
         });
     }
 
