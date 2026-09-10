@@ -4,7 +4,7 @@ if (typeof window.selectedAPIs === 'undefined') {
     window.selectedAPIs = [];
 }
 if (typeof window.customAPIs === 'undefined') {
-    window.customAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+    window.customAPIs = JSON.parse(localStorage.getItem(scopedKey('customAPIs')) || '[]');
 }
 var selectedAPIs = window.selectedAPIs;
 var customAPIs = window.customAPIs;
@@ -93,7 +93,7 @@ function verifyAdminPassword() {
 function resetDataSourceLogic() {
     // 清除所有相关的本地存储项
     localStorage.removeItem('dataSourceLogicVersion');
-    localStorage.removeItem('selectedAPIs');
+    localStorage.removeItem(scopedKey('selectedAPIs'));
     localStorage.removeItem('hasUserSelectedAPIs');
     localStorage.removeItem('lastRefreshTime');
     
@@ -123,13 +123,23 @@ function initAPICheckboxes() {
     normaldiv.className = 'contents';
     const normalTitle = document.createElement('div');
     normalTitle.className = 'api-group-title';
-    normalTitle.textContent = '普通资源';
+    // 标题与可见源都由当前数据域决定：正常域「普通资源」/ 隐藏域「隐藏资源采集站」
+    if (isHiddenContentMode()) {
+        normalTitle.className = 'api-group-title hidden';
+        normalTitle.innerHTML = `隐藏资源采集站 <span class="hidden-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        </span>`;
+    } else {
+        normalTitle.textContent = '普通资源';
+    }
     normaldiv.appendChild(normalTitle);
 
-    // 创建普通API源的复选框
+    // 只渲染当前数据域的源，另一个域的内容完全不出现
     Object.keys(API_SITES).forEach(apiKey => {
         const api = API_SITES[apiKey];
-        if (api.hidden) return;
+        if (isHiddenContentMode() ? !api.hidden : !!api.hidden) return;
 
         const checked = selectedAPIs.includes(apiKey);
 
@@ -152,10 +162,14 @@ function initAPICheckboxes() {
     });
     container.appendChild(normaldiv);
 
-    // 添加隐藏API列表
-    addHiddenAPI();
+    // 自定义API的「隐藏资源站」标记由当前数据域决定，不允许手动改
+    const hiddenFlagInput = document.getElementById('customApiIsHidden');
+    if (hiddenFlagInput) {
+        hiddenFlagInput.checked = isHiddenContentMode();
+        hiddenFlagInput.disabled = true;
+    }
 
-    // 初始检查隐藏内容状态
+    // 同步开关状态
     checkHiddenAPIsSelected();
 }
 
@@ -166,9 +180,14 @@ function applyNewDataSourceLogic() {
     const currentTime = Date.now();
     const dayInMs = 24 * 60 * 60 * 1000;
 
+    // 两个数据域的默认选中源不同：正常域 3 个常用源，隐藏域为全部隐藏源
+    const defaultSelected = isHiddenContentMode()
+        ? Object.keys(API_SITES).filter(key => API_SITES[key].hidden)
+        : ["bfzy", "zuid", "wujin"];
+
     if (currentVersion !== DATA_SOURCE_LOGIC_VERSION) {
-        selectedAPIs = ["bfzy", "zuid", "wujin"];
-        localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+        selectedAPIs = defaultSelected.slice();
+        localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
         localStorage.setItem('lastRefreshTime', currentTime.toString());
         localStorage.setItem('hasUserSelectedAPIs', 'false');
         localStorage.setItem('dataSourceLogicVersion', DATA_SOURCE_LOGIC_VERSION);
@@ -180,12 +199,12 @@ function applyNewDataSourceLogic() {
             refreshDataSources(hasUserSelected);
         }
 
-        const savedSelectedAPIs = localStorage.getItem('selectedAPIs');
+        const savedSelectedAPIs = localStorage.getItem(scopedKey('selectedAPIs'));
         if (savedSelectedAPIs) {
             selectedAPIs = JSON.parse(savedSelectedAPIs);
         } else {
-            selectedAPIs = ["bfzy", "zuid", "wujin"];
-            localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+            selectedAPIs = defaultSelected.slice();
+            localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
             localStorage.setItem('lastRefreshTime', currentTime.toString());
             localStorage.setItem('hasUserSelectedAPIs', 'false');
         }
@@ -195,7 +214,7 @@ function applyNewDataSourceLogic() {
 // 刷新数据源
 function refreshDataSources(hasUserSelected) {
     const currentTime = Date.now();
-    const savedSelectedAPIs = localStorage.getItem('selectedAPIs') || '[]';
+    const savedSelectedAPIs = localStorage.getItem(scopedKey('selectedAPIs')) || '[]';
     const currentSelectedAPIs = JSON.parse(savedSelectedAPIs);
     // 保留所有内置源（含隐藏源）与有效自定义源；仅剔除已不存在的源
     const allDataSources = Object.keys(API_SITES);
@@ -203,7 +222,7 @@ function refreshDataSources(hasUserSelected) {
         allDataSources.includes(api) || api.startsWith('custom_')
     );
     selectedAPIs = updatedSelectedAPIs;
-    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+    localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
     localStorage.setItem('lastRefreshTime', currentTime.toString());
 }
 
@@ -217,117 +236,31 @@ function getRandomDataSources(count) {
     return shuffled.slice(0, count);
 }
 
-// 添加隐藏API列表
-function addHiddenAPI() {
-    // 仅在隐藏设置为false时添加隐藏API组
-    if (!HIDE_BUILTIN_HIDDEN_APIS && (localStorage.getItem('hiddenFilterEnabled') === 'false')) {
-        const container = document.getElementById('apiCheckboxes');
-
-        // 添加隐藏API组标题
-        const hiddendiv = document.createElement('div');
-        hiddendiv.id = 'hiddendiv';
-        hiddendiv.className = 'contents';
-        const hiddenTitle = document.createElement('div');
-        hiddenTitle.className = 'api-group-title hidden';
-        hiddenTitle.innerHTML = `隐藏资源采集站 <span class="hidden-warning">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-        </span>`;
-        hiddendiv.appendChild(hiddenTitle);
-
-        // 创建隐藏API源的复选框
-        Object.keys(API_SITES).forEach(apiKey => {
-            const api = API_SITES[apiKey];
-            if (!api.hidden) return; // 仅添加隐藏内容API
-
-            const checked = selectedAPIs.includes(apiKey);
-
-            const checkbox = document.createElement('div');
-            checkbox.className = 'flex items-center';
-            checkbox.innerHTML = `
-                <input type="checkbox" id="api_${apiKey}" 
-                       class="form-checkbox h-3 w-3 text-blue-600 bg-[#222] border border-[#333] api-hidden" 
-                       ${checked ? 'checked' : ''} 
-                       data-api="${apiKey}"
-                       data-role="api-toggle">
-                <label for="api_${apiKey}" class="ml-1 text-xs text-pink-400 truncate">${api.name}</label>
-            `;
-            hiddendiv.appendChild(checkbox);
-
-            // 添加事件监听器
-            checkbox.querySelector('[data-role="api-toggle"]').addEventListener('change', function () {
-                updateSelectedAPIs();
-                checkHiddenAPIsSelected();
-            });
-        });
-        container.appendChild(hiddendiv);
-    }
-}
-
-// 检查是否有隐藏API被选中
+// 同步"隐藏内容模式"开关的显示状态（当前数据域由开关本身决定，不再与源选择互斥）
 function checkHiddenAPIsSelected() {
-    // 查找所有内置隐藏API复选框
-    const hiddenBuiltinCheckboxes = document.querySelectorAll('#apiCheckboxes .api-hidden:checked');
-
-    // 查找所有自定义隐藏API复选框
-    const customApiCheckboxes = document.querySelectorAll('#customApisList .api-hidden:checked');
-
-    const hasHiddenSelected = hiddenBuiltinCheckboxes.length > 0 || customApiCheckboxes.length > 0;
-
-    const hiddenFilterToggle = document.getElementById('hiddenFilterToggle');
-    const hiddenFilterContainer = document.querySelector('[data-role="filter-section"]');
-    const filterDescription = hiddenFilterContainer ? hiddenFilterContainer.querySelector('.dash-switch-desc') : null;
-
-    // 如果选择了隐藏API，禁用隐藏内容过滤器
-    if (hasHiddenSelected) {
-        hiddenFilterToggle.checked = false;
-        hiddenFilterToggle.disabled = true;
-        localStorage.setItem('hiddenFilterEnabled', 'false');
-
-        // 添加禁用样式
-        hiddenFilterContainer.classList.add('filter-disabled');
-
-        // 修改描述文字
-        if (filterDescription) {
-            filterDescription.innerHTML = '<strong class="text-pink-300">选中隐藏资源站时无法启用此过滤</strong>';
-        }
-
-        // 移除提示信息（如果存在）
-        const existingTooltip = hiddenFilterContainer.querySelector('.filter-tooltip');
-        if (existingTooltip) {
-            existingTooltip.remove();
-        }
-    } else {
-        // 启用隐藏内容过滤器
-        hiddenFilterToggle.disabled = false;
-        hiddenFilterContainer.classList.remove('filter-disabled');
-
-        // 恢复原来的描述文字
-        if (filterDescription) {
-            filterDescription.innerHTML = '过滤"伦理片🈲"等隐藏内容';
-        }
-
-        // 移除提示信息
-        const existingTooltip = hiddenFilterContainer.querySelector('.filter-tooltip');
-        if (existingTooltip) {
-            existingTooltip.remove();
-        }
+    const hiddenModeToggle = document.getElementById('hiddenContentModeToggle');
+    if (hiddenModeToggle) {
+        hiddenModeToggle.checked = isHiddenContentMode();
     }
 }
 
-// 渲染自定义API列表
+// 渲染自定义API列表（只列出当前数据域的条目，另一个域完全不出现）
 function renderCustomAPIsList() {
     const container = document.getElementById('customApisList');
     if (!container) return;
 
-    if (customAPIs.length === 0) {
-        container.innerHTML = '<p class="text-xs text-gray-500 text-center my-2">未添加自定义API</p>';
+    const hiddenMode = isHiddenContentMode();
+    const visible = customAPIs
+        .map((api, index) => ({ api, index }))
+        .filter(({ api }) => hiddenMode ? !!api.isHidden : !api.isHidden);
+
+    if (visible.length === 0) {
+        container.innerHTML = `<p class="text-xs text-gray-500 text-center my-2">${hiddenMode ? '未添加隐藏自定义API' : '未添加自定义API'}</p>`;
         return;
     }
 
     container.innerHTML = '';
-    customAPIs.forEach((api, index) => {
+    visible.forEach(({ api, index }) => {
         const apiItem = document.createElement('div');
         apiItem.className = 'flex items-center justify-between p-1 mb-1 bg-[#222] rounded';
         const textColorClass = api.isHidden ? 'text-pink-400' : 'text-white';
@@ -392,7 +325,6 @@ function updateCustomApi(index) {
     const name = nameInput.value.trim();
     let url = urlInput.value.trim();
     const detail = detailInput ? detailInput.value.trim() : '';
-    const isHidden = isHiddenInput ? isHiddenInput.checked : false;
     if (!name || !url) {
         showToast('请输入API名称和链接', 'warning');
         return;
@@ -402,9 +334,9 @@ function updateCustomApi(index) {
         return;
     }
     if (url.endsWith('/')) url = url.slice(0, -1);
-    // 保存 detail 字段
-    customAPIs[index] = { name, url, detail, isHidden };
-    localStorage.setItem('customAPIs', JSON.stringify(customAPIs));
+    // 隐藏标记由当前数据域决定，与复选框无关
+    customAPIs[index] = { name, url, detail, isHidden: isHiddenContentMode() };
+    localStorage.setItem(scopedKey('customAPIs'), JSON.stringify(customAPIs));
     renderCustomAPIsList();
     checkHiddenAPIsSelected();
     restoreAddCustomApiButtons();
@@ -457,8 +389,8 @@ function updateSelectedAPIs() {
     // 合并内置和自定义API
     selectedAPIs = [...builtInApis, ...customApiIndices];
 
-    // 保存到localStorage
-    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+    // 保存到localStorage（当前数据域）
+    localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
     // 标记用户已经做过选择
     localStorage.setItem('hasUserSelectedAPIs', 'true');
 
@@ -523,7 +455,6 @@ function addCustomApi() {
     const name = nameInput.value.trim();
     let url = urlInput.value.trim();
     const detail = detailInput ? detailInput.value.trim() : '';
-    const isHidden = isHiddenInput ? isHiddenInput.checked : false;
     if (!name || !url) {
         showToast('请输入API名称和链接', 'warning');
         return;
@@ -539,12 +470,12 @@ function addCustomApi() {
     if (url.endsWith('/')) {
         url = url.slice(0, -1);
     }
-    // 保存 detail 字段
-    customAPIs.push({ name, url, detail, isHidden });
-    localStorage.setItem('customAPIs', JSON.stringify(customAPIs));
+    // 隐藏标记由当前数据域决定，与复选框无关
+    customAPIs.push({ name, url, detail, isHidden: isHiddenContentMode() });
+    localStorage.setItem(scopedKey('customAPIs'), JSON.stringify(customAPIs));
     const newApiIndex = customAPIs.length - 1;
     selectedAPIs.push('custom_' + newApiIndex);
-    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+    localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
 
     // 重新渲染自定义API列表
     renderCustomAPIsList();
@@ -566,7 +497,7 @@ function removeCustomApi(index) {
 
     // 从列表中移除API
     customAPIs.splice(index, 1);
-    localStorage.setItem('customAPIs', JSON.stringify(customAPIs));
+    localStorage.setItem(scopedKey('customAPIs'), JSON.stringify(customAPIs));
 
     // 从选中列表中移除此API
     const customApiId = 'custom_' + index;
@@ -583,7 +514,7 @@ function removeCustomApi(index) {
         return id;
     });
 
-    localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
+    localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
 
     // 重新渲染自定义API列表
     renderCustomAPIsList();

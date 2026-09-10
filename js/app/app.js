@@ -26,8 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // 设置默认API选择（必须在 initAPICheckboxes 之前，否则复选框不同步）
     if (!localStorage.getItem('hasInitializedDefaults')) {
         selectedAPIs = ["zuid", "wujin", "lzzy"];
-        localStorage.setItem('selectedAPIs', JSON.stringify(selectedAPIs));
-        localStorage.setItem('hiddenFilterEnabled', 'true');
+        localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
         localStorage.setItem(PLAYER_CONFIG.adFilteringStorage, 'true');
         localStorage.setItem('hasInitializedDefaults', 'true');
         localStorage.setItem('dataSourceLogicVersion', 'v1');
@@ -42,11 +41,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // 初始化显示选中的API数量
     updateSelectedApiCount();
 
-    // 设置隐藏内容过滤器开关初始状态
-    const hiddenFilterToggle = document.getElementById('hiddenFilterToggle');
-    if (hiddenFilterToggle) {
-        hiddenFilterToggle.checked = localStorage.getItem('hiddenFilterEnabled') === 'true';
-    }
+    // 同步隐藏内容模式开关状态（统一由 checkHiddenAPIsSelected 处理）
+    checkHiddenAPIsSelected();
 
     // 设置广告过滤开关初始状态
     const adFilterToggle = document.getElementById('adFilterToggle');

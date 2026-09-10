@@ -57,8 +57,8 @@
         /** @type {boolean} 搜索节流锁 */
         throttled: false,
 
-        /** @type {boolean} 隐藏内容过滤是否启用 */
-        hiddenFilterEnabled: true
+        /** @type {boolean} 是否处于隐藏内容模式（决定当前数据域） */
+        hiddenContentMode: false
     };
 
     // ==================== 缓存/存储服务占位 ====================
@@ -135,7 +135,7 @@
         let list = window.customAPIs;
         if (typeof list === 'undefined' || !Array.isArray(list)) {
             try {
-                list = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+                list = JSON.parse(localStorage.getItem(scopedKey('customAPIs')) || '[]');
             } catch (e) {
                 list = [];
             }

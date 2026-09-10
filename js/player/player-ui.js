@@ -785,8 +785,8 @@ async function showSwitchResourceModal() {
     modal.classList.add('flex');
 
     // 搜索
-    const localSelectedAPIs = JSON.parse(localStorage.getItem('selectedAPIs') || '[]');
-    const localCustomAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+    const localSelectedAPIs = JSON.parse(localStorage.getItem(scopedKey('selectedAPIs')) || '[]');
+    const localCustomAPIs = JSON.parse(localStorage.getItem(scopedKey('customAPIs')) || '[]');
     const resourceOptions = localSelectedAPIs.map((curr) => {
         if (API_SITES[curr]) {
             return { key: curr, name: API_SITES[curr].name };

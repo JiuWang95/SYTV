@@ -249,7 +249,7 @@ async function loadMoviesResults() {
   renderMoviesSidebar();
   renderMoviesGrid();
 
-  var hiddenFilterEnabled = localStorage.getItem('hiddenFilterEnabled') === 'true';
+  var hiddenFilterEnabled = !isHiddenContentMode();
   var ordered = _orderSourcesByLoad((selectedAPIs || []).filter(_isValidSource));
   var deadline = Date.now() + 12000;
   var grid = document.getElementById('moviesResults');

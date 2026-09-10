@@ -54,7 +54,7 @@ class LoadBalancer {
         });
 
         // 初始化自定义API源
-        const customAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+        const customAPIs = JSON.parse(localStorage.getItem(scopedKey('customAPIs')) || '[]');
         customAPIs.forEach((_, index) => {
             const customKey = `custom_${index}`;
             if (!this.apiStats.has(customKey)) {
@@ -339,7 +339,7 @@ class LoadBalancer {
      * 获取选中的API列表
      */
     getSelectedApis() {
-        const selectedAPIs = JSON.parse(localStorage.getItem('selectedAPIs') || '[]');
+        const selectedAPIs = JSON.parse(localStorage.getItem(scopedKey('selectedAPIs')) || '[]');
         return selectedAPIs.length > 0 ? selectedAPIs : Object.keys(API_SITES).slice(0, 5);
     }
 

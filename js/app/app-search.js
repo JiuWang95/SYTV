@@ -344,40 +344,34 @@ function setupEventListeners() {
     // 初始化邮箱点击事件处理器
     setupEmailClickHandlers();
 
-    // 隐藏内容过滤开关事件绑定
-    const hiddenFilterToggle = document.getElementById('hiddenFilterToggle');
-    if (hiddenFilterToggle) {
-        hiddenFilterToggle.addEventListener('change', async function (e) {
-            // 如果是尝试关闭过滤器（即显示隐藏内容），需要验证管理员密码
-            if (!e.target.checked) {
+    // 隐藏内容模式开关：切换数据域（正常 ⇄ 隐藏），进入隐藏域需管理员密码
+    const hiddenModeToggle = document.getElementById('hiddenContentModeToggle');
+    if (hiddenModeToggle) {
+        hiddenModeToggle.checked = isHiddenContentMode();
+        hiddenModeToggle.addEventListener('change', async function (e) {
+            const wantHidden = e.target.checked;
+
+            // 进入隐藏域需要管理员密码；退出回正常域不需要
+            if (wantHidden) {
                 const isAdminVerified = await verifyAdminPassword();
                 if (!isAdminVerified) {
-                    // 如果验证失败，恢复开关状态并显示提示
-                    e.target.checked = true;
-                    showToast('需要管理员密码才能关闭隐藏内容过滤，密码提示:⟲', 'warning');
+                    e.target.checked = false;
+                    showToast('需要管理员密码才能进入隐藏内容模式，密码提示:⟲', 'warning');
                     return;
                 }
             }
 
-            // 验证通过或开启过滤器，执行原有逻辑
-            localStorage.setItem('hiddenFilterEnabled', e.target.checked);
-
-            // 控制隐藏内容接口的显示状态
-            const hiddendiv = document.getElementById('hiddendiv');
-            if (e.target.checked === true) {
-                // 如果启用过滤，则隐藏隐藏内容API
-                if (hiddendiv) {
-                    hiddendiv.style.display = 'none';
-                }
-            } else if (e.target.checked === false) {
-                // 如果禁用过滤，刷新并显示隐藏内容API列表
-                // 先移除已有的隐藏API区域
-                if (hiddendiv) {
-                    hiddendiv.remove();
-                }
-                // 重新创建隐藏API列表，确保所有隐藏API都显示出来
-                addHiddenAPI();
+            try {
+                localStorage.setItem(HIDDEN_MODE_KEY, wantHidden ? 'true' : 'false');
+            } catch (err) {
+                console.error('切换隐藏内容模式失败:', err);
+                e.target.checked = !wantHidden;
+                return;
             }
+
+            // 数据域已切换：源/历史/自定义API都要按新域重新读取，重载最可靠
+            showToast(wantHidden ? '已进入隐藏内容模式，正在载入…' : '已退出隐藏内容模式，正在载入…', 'info');
+            window.location.reload();
         });
     }
 
@@ -419,7 +413,7 @@ function setupEventListeners() {
             case 'open-invite-guide': openInviteGuideModal(); break;
             case 'close-invite-guide': closeInviteGuideModal(); break;
             case 'accept-disclaimer': closeDisclaimerModal(); break;
-            case 'select-all-apis': selectAllAPIs(true, true); break;
+            case 'select-all-apis': selectAllAPIs(true); break;
             case 'deselect-all-apis': selectAllAPIs(false); break;
             case 'reset-apis': resetDataSourceLogic(); break;
             case 'show-add-custom-api': showAddCustomApiForm(); break;
@@ -645,7 +639,8 @@ async function search() {
 
         // 从所有选中的API源搜索（渐进式渲染）
         let allResults = [];
-        const hiddenFilterEnabled = localStorage.getItem('hiddenFilterEnabled') === 'true';
+        // 正常域过滤黑名单内容（"伦理片"等）；隐藏域不过滤——隐藏内容正是要看的内容
+        const hiddenFilterEnabled = !isHiddenContentMode();
 
         // 显示结果区域，调整搜索区域（仅非结果页路由时生效，结果页由 #page-movies 承载）
         if (!routeToMovies) {

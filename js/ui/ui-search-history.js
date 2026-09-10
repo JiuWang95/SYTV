@@ -1,6 +1,6 @@
 function getSearchHistory() {
     try {
-        const data = localStorage.getItem(SEARCH_HISTORY_KEY);
+        const data = localStorage.getItem(scopedKey(SEARCH_HISTORY_KEY));
         if (!data) return [];
 
         const parsed = JSON.parse(data);
@@ -54,13 +54,13 @@ function saveSearchHistory(query) {
     }
 
     try {
-        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+        localStorage.setItem(scopedKey(SEARCH_HISTORY_KEY), JSON.stringify(history));
     } catch (e) {
         console.error('保存搜索历史失败:', e);
         // 如果存储失败（可能是localStorage已满），尝试清理旧数据
         try {
-            localStorage.removeItem(SEARCH_HISTORY_KEY);
-            localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history.slice(0, 3)));
+            localStorage.removeItem(scopedKey(SEARCH_HISTORY_KEY));
+            localStorage.setItem(scopedKey(SEARCH_HISTORY_KEY), JSON.stringify(history.slice(0, 3)));
         } catch (e2) {
             console.error('再次保存搜索历史失败:', e2);
         }
@@ -226,7 +226,7 @@ function deleteSingleSearchHistory(query) {
         let history = getSearchHistory();
         // 过滤掉要删除的记录
         history = history.filter(item => item.text !== query);
-        localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+        localStorage.setItem(scopedKey(SEARCH_HISTORY_KEY), JSON.stringify(history));
     } catch (e) {
         console.error('删除单条搜索历史失败:', e);
         showToast('删除单条搜索历史失败', 'error');
@@ -235,7 +235,7 @@ function deleteSingleSearchHistory(query) {
 
 function clearSearchHistory() {
     try {
-        localStorage.removeItem(SEARCH_HISTORY_KEY);
+        localStorage.removeItem(scopedKey(SEARCH_HISTORY_KEY));
         hideSearchHistory();
         showToast('搜索历史已清除', 'success');
     } catch (e) {

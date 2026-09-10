@@ -33,7 +33,7 @@ async function importConfigFromUrl() {
                     if (config.name !== 'LeLeTV-Settings') throw '配置文件格式不正确';
                     const dataHash = await sha256(JSON.stringify(config.data));
                     if (dataHash !== config.hash) throw '配置文件哈希值不匹配';
-                    for (let item in config.data) localStorage.setItem(item, config.data[item]);
+                    for (let item in config.data) localStorage.setItem(scopedKey(item), config.data[item]);
                     showToast('配置文件导入成功，3 秒后自动刷新本页面。', 'success');
                     setTimeout(() => window.location.reload(), 3000);
                 } catch (error) {
@@ -76,7 +76,7 @@ async function importConfig() {
 
             // 导入配置
             for (let item in config.data) {
-                localStorage.setItem(item, config.data[item]);
+                localStorage.setItem(scopedKey(item), config.data[item]);
             }
 
             showToast('配置文件导入成功，3 秒后自动刷新本页面。', 'success');
@@ -98,26 +98,26 @@ async function exportConfig() {
     const settingsToExport = [
         'selectedAPIs',
         'customAPIs',
-        'hiddenFilterEnabled',
+        'hiddenContentMode',
         'adFilteringEnabled',
         'hasInitializedDefaults'
     ];
 
-    // 导出设置项
+    // 导出设置项（scoped 键按当前数据域读取，隐藏域导出的是 hidden:: 版本）
     settingsToExport.forEach(key => {
-        const value = localStorage.getItem(key);
+        const value = localStorage.getItem(scopedKey(key));
         if (value !== null) {
             items[key] = value;
         }
     });
 
     // 导出历史记录
-    const viewingHistory = localStorage.getItem('viewingHistory');
+    const viewingHistory = localStorage.getItem(scopedKey('viewingHistory'));
     if (viewingHistory) {
         items['viewingHistory'] = viewingHistory;
     }
 
-    const searchHistory = localStorage.getItem(SEARCH_HISTORY_KEY);
+    const searchHistory = localStorage.getItem(scopedKey(SEARCH_HISTORY_KEY));
     if (searchHistory) {
         items[SEARCH_HISTORY_KEY] = searchHistory;
     }

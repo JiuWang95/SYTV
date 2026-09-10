@@ -3,6 +3,28 @@ const PROXY_URL = '/proxy/';    // 适用于 Cloudflare, Netlify (带重写), Ve
 const SEARCH_HISTORY_KEY = 'videoSearchHistory';
 const MAX_HISTORY_ITEMS = 5;
 
+// ==================== 隐藏内容模式（双数据域隔离） ====================
+// 开启隐藏内容模式后，下列键的读写会自动带 hidden:: 前缀，与正常域完全隔离，
+// 两个域互不可见。其余键（设置项、播放器状态等）由两个域共用。
+const HIDDEN_MODE_KEY = 'hiddenContentMode';
+const HIDDEN_KEY_PREFIX = 'hidden::';
+const SCOPED_STORAGE_KEYS = ['selectedAPIs', 'customAPIs', 'viewingHistory', 'videoSearchHistory'];
+
+/** 当前是否处于隐藏内容模式 */
+function isHiddenContentMode() {
+    try {
+        return localStorage.getItem(HIDDEN_MODE_KEY) === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
+/** 按当前数据域解析存储键名；非 scoped 键原样返回 */
+function scopedKey(key) {
+    if (SCOPED_STORAGE_KEYS.indexOf(key) === -1) return key;
+    return isHiddenContentMode() ? HIDDEN_KEY_PREFIX + key : key;
+}
+
 // TMDB Worker URL
 // 部署 Cloudflare Worker (workers/tmdb-worker.js) 后填入自定义域名
 // 留空则使用本地 Node.js 代理 /api/tmdb
@@ -215,7 +237,11 @@ const CACHE_CONFIG = {
     preserveKeys: [
         'selectedAPIs',          // 用户选择的API列表
         'customAPIs',            // 自定义API列表
-        'hiddenFilterEnabled',   // 隐藏内容过滤开关
+        'hiddenContentMode',     // 隐藏内容模式开关（决定当前数据域）
+        'hidden::selectedAPIs',  // 隐藏域：用户选择的API列表
+        'hidden::customAPIs',    // 隐藏域：自定义API列表
+        'hidden::viewingHistory',// 隐藏域：观看历史记录
+        'hidden::videoSearchHistory', // 隐藏域：搜索历史记录
         'adFilteringEnabled',    // 广告过滤开关
         'hasInitializedDefaults',// 是否已初始化默认值
         'viewingHistory',        // 观看历史记录

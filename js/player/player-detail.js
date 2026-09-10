@@ -60,7 +60,7 @@ function renderResourceInfoBar() {
   var rn = currentSource;
   if (currentSource && API_SITES[currentSource]) rn = API_SITES[currentSource].name;
   if (rn === currentSource) {
-    var caps = JSON.parse(localStorage.getItem('customAPIs') || '[]');
+    var caps = JSON.parse(localStorage.getItem(scopedKey('customAPIs')) || '[]');
     var ci = parseInt(currentSource.replace('custom_', ''), 10);
     if (caps[ci]) rn = caps[ci].name || '\u81ea\u5b9a\u4e49\u8d44\u6e90';
   }

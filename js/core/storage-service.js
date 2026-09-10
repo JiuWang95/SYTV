@@ -23,7 +23,7 @@ const StorageKeys = {
     DATA_SOURCE_LOGIC_VERSION: 'dataSourceLogicVersion',
     HAS_USER_SELECTED_APIS: 'hasUserSelectedAPIs',
     LAST_REFRESH_TIME: 'lastRefreshTime',
-    HIDDEN_FILTER_ENABLED: 'hiddenFilterEnabled',
+    HIDDEN_CONTENT_MODE: 'hiddenContentMode',
 
     // ---- 播放器状态 ----
     CURRENT_VIDEO_TITLE: 'currentVideoTitle',
@@ -231,9 +231,9 @@ const StorageService = {
         this.setJSON(StorageKeys.CURRENT_VIDEO_INFO, info);
     },
 
-    /** @returns {boolean} */
-    isHiddenFilterEnabled: function () {
-        return this.getBool(StorageKeys.HIDDEN_FILTER_ENABLED, true);
+    /** @returns {boolean} 是否处于隐藏内容模式（决定当前数据域） */
+    isHiddenContentMode: function () {
+        return this.getBool(StorageKeys.HIDDEN_CONTENT_MODE, false);
     }
 };
 

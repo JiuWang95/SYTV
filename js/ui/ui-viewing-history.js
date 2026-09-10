@@ -1,6 +1,6 @@
 function getViewingHistory() {
     try {
-        const data = localStorage.getItem('viewingHistory');
+        const data = localStorage.getItem(scopedKey('viewingHistory'));
         return data ? JSON.parse(data) : [];
     } catch (e) {
         console.error('获取观看历史失败:', e);
@@ -174,7 +174,7 @@ function deleteHistoryItem(encodedUrl) {
         const newHistory = history.filter(item => item.url !== url);
 
         // 保存回localStorage
-        localStorage.setItem('viewingHistory', JSON.stringify(newHistory));
+        localStorage.setItem(scopedKey('viewingHistory'), JSON.stringify(newHistory));
 
         // 重新加载历史记录显示
         loadViewingHistory();
@@ -193,7 +193,7 @@ async function playFromHistory(url, title, episodeIndex, playbackPosition = 0) {
         let historyItem = null;
 
         // 获取历史记录（localStorage，快速）
-        const historyRaw = localStorage.getItem('viewingHistory');
+        const historyRaw = localStorage.getItem(scopedKey('viewingHistory'));
         if (historyRaw) {
             const history = JSON.parse(historyRaw);
             historyItem = history.find(item => item.url === url);
@@ -327,14 +327,14 @@ async function syncEpisodesInBackground(historyItem, url) {
             }
 
             // 更新历史记录中的剧集列表
-            const raw = localStorage.getItem('viewingHistory');
+            const raw = localStorage.getItem(scopedKey('viewingHistory'));
             if (raw) {
                 const history = JSON.parse(raw);
                 const idx = history.findIndex(item => item.url === url);
                 if (idx !== -1) {
                     history[idx].episodes = [...videoDetails.episodes];
                     history[idx].lastSyncTime = Date.now();
-                    localStorage.setItem('viewingHistory', JSON.stringify(history));
+                    localStorage.setItem(scopedKey('viewingHistory'), JSON.stringify(history));
                 }
             }
         }
@@ -423,7 +423,7 @@ function addToViewingHistory(videoInfo) {
         }
 
         // 保存到本地存储
-        localStorage.setItem('viewingHistory', JSON.stringify(history));
+        localStorage.setItem(scopedKey('viewingHistory'), JSON.stringify(history));
     } catch (e) {
         // console.error('保存观看历史失败:', e);
     }
@@ -431,7 +431,7 @@ function addToViewingHistory(videoInfo) {
 
 function clearViewingHistory() {
     try {
-        localStorage.removeItem('viewingHistory');
+        localStorage.removeItem(scopedKey('viewingHistory'));
         loadViewingHistory(); // 重新加载空的历史记录
         showToast('观看历史已清空', 'success');
     } catch (e) {
