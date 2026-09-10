@@ -98,7 +98,9 @@ function resetDataSourceLogic() {
     localStorage.removeItem('lastRefreshTime');
     
     // 显示提示信息
-    showToast('数据源选择逻辑已重置，将应用新的选择规则', 'success');
+    showToast(isHiddenContentMode()
+        ? '已重置，随机选取 5 个隐藏内容源'
+        : '数据源选择逻辑已重置，将应用新的选择规则', 'success');
     
     // 重新初始化API复选框，应用新逻辑
     initAPICheckboxes();
@@ -180,9 +182,9 @@ function applyNewDataSourceLogic() {
     const currentTime = Date.now();
     const dayInMs = 24 * 60 * 60 * 1000;
 
-    // 两个数据域的默认选中源不同：正常域 3 个常用源，隐藏域为全部隐藏源
+    // 两个数据域的默认选中源不同：正常域 3 个固定常用源，隐藏域随机 5 个隐藏源
     const defaultSelected = isHiddenContentMode()
-        ? Object.keys(API_SITES).filter(key => API_SITES[key].hidden)
+        ? getRandomDataSources(5)
         : ["bfzy", "zuid", "wujin"];
 
     if (currentVersion !== DATA_SOURCE_LOGIC_VERSION) {
@@ -226,13 +228,15 @@ function refreshDataSources(hasUserSelected) {
     localStorage.setItem('lastRefreshTime', currentTime.toString());
 }
 
-// 随机选择指定数量的数据源
+// 随机选择指定数量的数据源（按当前数据域取池子：正常域取普通源，隐藏域取隐藏源）
 function getRandomDataSources(count) {
-    const normalDataSources = Object.keys(API_SITES).filter(key => !API_SITES[key].hidden);
-    if (normalDataSources.length <= count) {
-        return normalDataSources;
+    const pool = Object.keys(API_SITES).filter(key =>
+        isHiddenContentMode() ? !!API_SITES[key].hidden : !API_SITES[key].hidden
+    );
+    if (pool.length <= count) {
+        return pool;
     }
-    const shuffled = [...normalDataSources].sort(() => 0.5 - Math.random());
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
 }
 

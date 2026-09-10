@@ -33,7 +33,11 @@ async function importConfigFromUrl() {
                     if (config.name !== 'LeLeTV-Settings') throw '配置文件格式不正确';
                     const dataHash = await sha256(JSON.stringify(config.data));
                     if (dataHash !== config.hash) throw '配置文件哈希值不匹配';
-                    for (let item in config.data) localStorage.setItem(scopedKey(item), config.data[item]);
+                    // hiddenContentMode 不参与恢复：隐藏模式只能由开关 + 密码进入
+                    for (let item in config.data) {
+                        if (item === HIDDEN_MODE_KEY) continue;
+                        localStorage.setItem(scopedKey(item), config.data[item]);
+                    }
                     showToast('配置文件导入成功，3 秒后自动刷新本页面。', 'success');
                     setTimeout(() => window.location.reload(), 3000);
                 } catch (error) {
@@ -74,8 +78,9 @@ async function importConfig() {
             const dataHash = await sha256(JSON.stringify(config.data));
             if (dataHash !== config.hash) throw '配置文件哈希值不匹配';
 
-            // 导入配置
+            // 导入配置（hiddenContentMode 不参与恢复：隐藏模式只能由开关 + 密码进入）
             for (let item in config.data) {
+                if (item === HIDDEN_MODE_KEY) continue;
                 localStorage.setItem(scopedKey(item), config.data[item]);
             }
 
