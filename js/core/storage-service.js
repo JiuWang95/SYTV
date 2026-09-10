@@ -181,44 +181,45 @@ const StorageService = {
 
     // ---- 常用数据的命名访问器 ----
 
+    // 注意：下列 4 类数据按当前数据域隔离（scopedKey）——隐藏模式下读写 hidden:: 前缀的键
     /** @returns {string[]} */
     getSelectedAPIs: function () {
-        return this.getJSON(StorageKeys.SELECTED_APIS, []);
+        return this.getJSON(scopedKey(StorageKeys.SELECTED_APIS), []);
     },
 
     /** @param {string[]} apis */
     setSelectedAPIs: function (apis) {
-        this.setJSON(StorageKeys.SELECTED_APIS, apis);
+        this.setJSON(scopedKey(StorageKeys.SELECTED_APIS), apis);
     },
 
     /** @returns {Array} */
     getCustomAPIs: function () {
-        return this.getJSON(StorageKeys.CUSTOM_APIS, []);
+        return this.getJSON(scopedKey(StorageKeys.CUSTOM_APIS), []);
     },
 
     /** @param {Array} apis */
     setCustomAPIs: function (apis) {
-        this.setJSON(StorageKeys.CUSTOM_APIS, apis);
+        this.setJSON(scopedKey(StorageKeys.CUSTOM_APIS), apis);
     },
 
     /** @returns {Array} */
     getViewingHistory: function () {
-        return this.getJSON(StorageKeys.VIEWING_HISTORY, []);
+        return this.getJSON(scopedKey(StorageKeys.VIEWING_HISTORY), []);
     },
 
     /** @param {Array} history */
     setViewingHistory: function (history) {
-        this.setJSON(StorageKeys.VIEWING_HISTORY, history);
+        this.setJSON(scopedKey(StorageKeys.VIEWING_HISTORY), history);
     },
 
     /** @returns {Array} */
     getSearchHistory: function () {
-        return this.getJSON(StorageKeys.SEARCH_HISTORY, []);
+        return this.getJSON(scopedKey(StorageKeys.SEARCH_HISTORY), []);
     },
 
     /** @param {Array} history */
     setSearchHistory: function (history) {
-        this.setJSON(StorageKeys.SEARCH_HISTORY, history);
+        this.setJSON(scopedKey(StorageKeys.SEARCH_HISTORY), history);
     },
 
     /** @returns {Object|null} */

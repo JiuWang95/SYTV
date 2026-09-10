@@ -27,9 +27,16 @@ async function buildApiParamsAndFetch(id, sourceCode) {
     }
 }
 
-// 构建播放页返回地址：直接取当前页完整 URL（含 hash 与查询参数），保证返回精确回到点击来源页
+// 构建播放页返回地址：直接取当前页完整 URL（含 hash 与查询参数），保证返回精确回到点击来源页。
+// 特例：结果页（#movies）若由类别页发起的搜索进入，返回时应跳过结果页直达类别页，
+// 因此改写为 #category 并附 returnTo 标记，供 goHome 判断本次不能用 history.back()。
 function buildPlayerBackUrl() {
     try {
+        if (location.hash === '#movies'
+            && typeof _moviesState !== 'undefined' && _moviesState
+            && _moviesState.from === 'category') {
+            return window.location.origin + window.location.pathname + '?returnTo=category#category';
+        }
         return window.location.href;
     } catch (e) {
         return window.location.origin + '/index.html';

@@ -42,6 +42,8 @@ const PLAYER = {
   name: 'leletv-player',
   files: [
     'js/api/api.js', 'js/api/search.js',
+    // 播放页会调用 addToViewingHistory 补建历史记录（player.js 内），该函数定义在此文件，必须一起打包
+    'js/ui/ui-viewing-history.js',
     'js/player/player-manager.js', 'js/player/player-shortcuts.js',
     'js/player/player-core.js', 'js/player/player-episodes.js',
     'js/player/player-ui.js', 'js/player/player-detail.js', 'js/player/player-quality.js', 'js/player/player.js',

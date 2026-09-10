@@ -4,10 +4,6 @@ let currentPage = 'home';
 
 function switchPage(a) {
   var h = a === 'home' ? '' : '#' + a;
-  // 记录最近浏览的非首页页面，供播放页返回时定位来源页（如 #category、#history）
-  if (a !== 'home') {
-    try { sessionStorage.setItem('leletv_last_browsed_page', h); } catch (e) { /* 忽略 */ }
-  }
   if (location.hash !== h) location.hash = h; else showPage(a);
 }
 

@@ -65,12 +65,14 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(checkHiddenAPIsSelected, TIMING.FOCUS_DELAY);
 });
 
-// 检测 bfcache 恢复（从播放页返回时），清除陈旧搜索状态
+// bfcache 恢复（从播放页返回）：按 hash 恢复来源页并重新加载其数据
 window.addEventListener('pageshow', function (e) {
     if (e.persisted) {
+        // 清除首页搜索结果残留（结果页/历史页不含这些元素，清理无副作用）
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '';
-        document.getElementById('results').innerHTML = '';
+        const resultsEl = document.getElementById('results');
+        if (resultsEl) resultsEl.innerHTML = '';
         document.getElementById('resultsArea')?.classList.add('hidden');
         document.getElementById('searchArea')?.classList.remove('flex-1', 'mb-8');
         document.querySelector('.home-layout')?.classList.remove('has-results');
@@ -79,16 +81,17 @@ window.addEventListener('pageshow', function (e) {
         _activeSourceFilter = 'all';
         const filterTabs = document.getElementById('sourceFilterTabs');
         if (filterTabs) filterTabs.innerHTML = '';
-        // 用 replaceState 修正 URL 不额外增加历史条目，同时清除 hash
-        if (window.location.pathname !== '/' || window.location.search || location.hash) {
-            try {
-                window.history.replaceState({}, 'LeLeTV', '/');
-                document.title = 'LeLeTV';
-            } catch (e) {}
-        }
-        // 恢复首页面板（bfcache 不会触发 hashchange）
+
+        // 关键：不强制回首页、不清除 hash。
+        // 进入播放页前的页面已在 URL hash 里（#category / #movies / #history ...），
+        // 按它恢复才能回到用户的原始位置；bfcache 恢复不会触发 hashchange，必须显式重放。
+        const page = location.hash.slice(1) || 'home';
         if (typeof showPage === 'function') {
-            showPage('home');
+            showPage(page);
+        }
+        // 重新拉取该页数据：历史页借此刷新播放进度与视频源变更，结果页恢复其结果内容
+        if (typeof handlePageLoad === 'function') {
+            handlePageLoad(page);
         }
     }
 });

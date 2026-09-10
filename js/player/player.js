@@ -30,10 +30,13 @@ function goHome(event) {
 
     if (backUrl) {
         localStorage.removeItem('lastSearchPage');
-        if (fromSameTab) {
+        // returnTo 标记表示本次返回需要跳过中间页（类别页发起的搜索要跳过结果页）。
+        // 这种情况下 history.back() 只会回到中间页，必须直接 replace 到目标地址。
+        const skipIntermediate = backUrl.indexOf('returnTo=') !== -1;
+        if (fromSameTab && !skipIntermediate) {
             window.history.back();
         } else {
-            // 直接输入 URL / 新标签页打开：历史栈无前序条目，直接跳转精确来源地址
+            // 直接输入 URL / 新标签页打开，或需要跳过中间页：直接跳转精确来源地址
             window.location.replace(backUrl);
         }
     } else {
