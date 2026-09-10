@@ -2,6 +2,20 @@
 // Extracted from index.html inline script
 let currentPage = 'home';
 
+// 整页重载（如切换隐藏/正常内容模式）前记录目标页，重载后恢复到该页
+const RELOAD_RESUME_PAGE_KEY = 'leletv_reload_resume_page';
+
+// 记录重载后应停留的页面：同步 URL hash（重载后首帧直达与路由都落在该页），
+// 并用 sessionStorage 兜底（hash 缺失时仍能恢复）
+function rememberPageForReload(page) {
+  try {
+    sessionStorage.setItem(RELOAD_RESUME_PAGE_KEY, page);
+    if (location.hash !== '#' + page) {
+      history.replaceState(null, '', location.pathname + location.search + '#' + page);
+    }
+  } catch (e) { /* 隐私模式等场景忽略：仅影响重载后的落点 */ }
+}
+
 function switchPage(a) {
   var h = a === 'home' ? '' : '#' + a;
   if (location.hash !== h) location.hash = h; else showPage(a);
@@ -185,7 +199,13 @@ document.addEventListener('DOMContentLoaded', function() {
     initAurora({ selector: '#auroraContainer', colorStops: ['#3A29FF', '#ec4899', '#FFD700'], amplitude: 0.45, blend: 0.6, speed: 0.35 });
   });
   AppInit.register('hash-routing', AppInit.PHASES.POST, function() {
-    var initPage = location.hash.slice(1) || 'home';
+    // 重载恢复页优先（如切换隐藏/正常内容模式后要留在设置页），其次 URL hash，最后默认首页
+    var resumePage = '';
+    try {
+      resumePage = sessionStorage.getItem(RELOAD_RESUME_PAGE_KEY) || '';
+      sessionStorage.removeItem(RELOAD_RESUME_PAGE_KEY);
+    } catch (e) { /* 忽略 */ }
+    var initPage = resumePage || location.hash.slice(1) || 'home';
     showPage(initPage);
     // 移除首帧直达标记（index.html 内联脚本设置），恢复由 active 类控制页面显示
     document.documentElement.removeAttribute('data-init-page');

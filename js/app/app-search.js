@@ -370,6 +370,8 @@ function setupEventListeners() {
             }
 
             // 数据域已切换：源/历史/自定义API都要按新域重新读取，重载最可靠
+            // 重载后停留在设置页（开关所在页），避免回落到默认首页
+            rememberPageForReload('settings');
             showToast(wantHidden ? '已进入隐藏内容模式，正在载入…' : '已退出隐藏内容模式，正在载入…', 'info');
             window.location.reload();
         });
