@@ -356,19 +356,19 @@ function setupEventListeners() {
     // 初始化邮箱点击事件处理器
     setupEmailClickHandlers();
 
-    // 隐藏内容模式开关：切换数据域（正常 ⇄ 隐藏），进入隐藏域需管理员密码
+    // 隐藏内容模式开关：切换数据域（正常 ⇄ 隐藏），进入隐藏域需私密密码
     const hiddenModeToggle = document.getElementById('hiddenContentModeToggle');
     if (hiddenModeToggle) {
         hiddenModeToggle.checked = isHiddenContentMode();
         hiddenModeToggle.addEventListener('change', async function (e) {
             const wantHidden = e.target.checked;
 
-            // 进入隐藏域需要管理员密码；退出回正常域不需要
+            // 进入隐藏域需要私密密码；退出回正常域不需要
             if (wantHidden) {
                 const isAdminVerified = await verifyAdminPassword();
                 if (!isAdminVerified) {
                     e.target.checked = false;
-                    showToast('需要管理员密码才能进入隐藏内容模式，密码提示:⟲', 'warning');
+                    showToast('需要私密密码才能进入私密模式', 'warning');
                     return;
                 }
             }
@@ -376,7 +376,7 @@ function setupEventListeners() {
             try {
                 localStorage.setItem(HIDDEN_MODE_KEY, wantHidden ? 'true' : 'false');
             } catch (err) {
-                console.error('切换隐藏内容模式失败:', err);
+                console.error('切换私密模式失败:', err);
                 e.target.checked = !wantHidden;
                 return;
             }

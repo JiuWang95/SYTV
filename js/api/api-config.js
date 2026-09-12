@@ -9,28 +9,28 @@ if (typeof window.customAPIs === 'undefined') {
 var selectedAPIs = window.selectedAPIs;
 var customAPIs = window.customAPIs;
 
-// 验证管理员密码
+// 验证私密密码
 function verifyAdminPassword() {
     return new Promise((resolve) => {
-        // 检查是否设置了管理员密码
+        // 检查是否设置了私密密码
         const adminPasswordHash = window.__ENV__ && window.__ENV__.HIDDENKEY;
         if (!adminPasswordHash) {
-            showToast('未设置隐藏内容密码，无法修改隐藏内容过滤设置', 'error');
+            showToast('未设置私密内容密码，无法修改私密内容过滤设置', 'error');
             resolve(false);
             return;
         }
 
         const overlay = showModal({
-            title: '隐藏内容验证',
+            title: '私密内容验证',
             content: (body) => {
                 body.innerHTML = `
-                    <p class="text-gray-300 mb-4">请输入隐藏密码以解锁🔓隐藏🈲内容过滤设置，密码提示:⟲</p>
-                    <input type="password" id="adminPasswordInput" class="w-full bg-[#111] border border-[var(--color-border-default)] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-white transition-colors" placeholder="管理员密码...">
+                    <p class="text-gray-300 mb-4">请输入私密密码以解锁🔓私密🈲内容过滤设置</p>
+                    <input type="password" id="adminPasswordInput" class="w-full bg-[#111] border border-[var(--color-border-default)] text-white px-4 py-3 rounded-lg focus:outline-none focus:border-white transition-colors" placeholder="私密密码...">
                     <div class="mt-4 flex space-x-4">
                         <button id="adminPasswordSubmitBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">确认</button>
                         <button id="adminPasswordCancelBtn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">取消</button>
                     </div>
-                    <p id="adminPasswordError" class="text-red-500 mt-2 hidden">隐藏密码错误，请重试，试试password反过来！</p>
+                    <p id="adminPasswordError" class="text-red-500 mt-2 hidden">私密密码错误，请重试，试试password反过来！</p>
                 `;
             }
         });
@@ -51,7 +51,7 @@ function verifyAdminPassword() {
         const verifyPassword = async () => {
             const inputPassword = passwordInput.value.trim();
             if (!inputPassword) {
-                errorMsg.textContent = '请输入隐藏内容密码';
+                errorMsg.textContent = '请输入私密内容密码';
                 errorMsg.classList.remove('hidden');
                 return;
             }
@@ -63,7 +63,7 @@ function verifyAdminPassword() {
                     overlay.remove();
                     resolve(true);
                 } else {
-                    errorMsg.textContent = '隐藏内容密码错误，请重试';
+                    errorMsg.textContent = '私密内容密码错误，请重试';
                     errorMsg.classList.remove('hidden');
                     passwordInput.select();
                 }
@@ -99,7 +99,7 @@ function resetDataSourceLogic() {
     
     // 显示提示信息
     showToast(isHiddenContentMode()
-        ? '已重置，随机选取 5 个隐藏内容源'
+        ? '已重置，随机选取 5 个私密内容源'
         : '已重置，随机选取 5 个数据源', 'success');
     
     // 重新初始化API复选框，应用新逻辑
@@ -125,10 +125,10 @@ function initAPICheckboxes() {
     normaldiv.className = 'contents';
     const normalTitle = document.createElement('div');
     normalTitle.className = 'api-group-title';
-    // 标题与可见源都由当前数据域决定：正常域「普通资源」/ 隐藏域「隐藏资源采集站」
+    // 标题与可见源都由当前数据域决定：正常域「普通资源」/ 隐藏域「私密资源采集站」
     if (isHiddenContentMode()) {
         normalTitle.className = 'api-group-title hidden';
-        normalTitle.innerHTML = `隐藏资源采集站 <span class="hidden-warning">
+        normalTitle.innerHTML = `私密资源采集站 <span class="hidden-warning">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -257,7 +257,7 @@ function renderCustomAPIsList() {
         .filter(({ api }) => hiddenMode ? !!api.isHidden : !api.isHidden);
 
     if (visible.length === 0) {
-        container.innerHTML = `<p class="text-xs text-gray-500 text-center my-2">${hiddenMode ? '未添加隐藏自定义API' : '未添加自定义API'}</p>`;
+        container.innerHTML = `<p class="text-xs text-gray-500 text-center my-2">${hiddenMode ? '未添加私密自定义API' : '未添加自定义API'}</p>`;
         return;
     }
 
