@@ -152,6 +152,16 @@
         this.startTime = 0;
         this.running = false;
         this.boundResize = this._resize.bind(this);
+        this.boundTick = this._tick.bind(this);
+        this.boundVisibility = this._onVisibilityChange.bind(this);
+
+        this.loc = {};                   // 缓存的 uniform location：避免每帧向驱动查询
+        this.externalPaused = false;     // 外部暂停（例如播放页在播视频时）
+        this.hidden = false;             // 页面是否在后台
+        this._active = true;             // 是否正在渲染（与 _init 末尾启动的渲染保持一致）
+        this._stoppedAt = 0;             // 停止渲染的时刻，恢复时用它平移时间基准
+        this.lastFrame = 0;              // 限帧用
+        this.frameInterval = 1000 / 30;  // 目标 30fps：极光漂移极缓，肉眼无差别，GPU 占用减半
 
         this._init();
     }
@@ -197,7 +207,8 @@
             this.gl = this.canvas.getContext('webgl2', {
                 alpha: true,
                 premultipliedAlpha: true,
-                antialias: true
+                // 全屏三角形没有几何边缘，MSAA 只会白占一个多重采样缓冲
+                antialias: false
             });
 
             if (!this.gl) {
@@ -214,6 +225,7 @@
             if (!this.program) return;
 
             gl.useProgram(this.program);
+            this._cacheLocations();
 
             var vertices = new Float32Array([-1, -1, 3, -1, -1, 3]);
             this.vao = gl.createVertexArray();
@@ -235,6 +247,8 @@
             this._resize();
             // 监听窗口和容器尺寸变化，极光实时适配
             window.addEventListener('resize', this.boundResize);
+            // 页面切后台/锁屏时停掉渲染，回来接着走（纯省电，画面不变）
+            document.addEventListener('visibilitychange', this.boundVisibility);
             if (window.ResizeObserver) {
                 resizeObserver = new ResizeObserver(this.boundResize);
                 resizeObserver.observe(this.container);
@@ -247,27 +261,36 @@
         }
     };
 
-    AuroraBg.prototype._setUniforms = function () {
+    // 构造时把 uniform location 全部查一次缓存起来：每帧 getUniformLocation 会让驱动反复查询
+    AuroraBg.prototype._cacheLocations = function () {
         var gl = this.gl;
         var program = this.program;
-        if (!program) return;
+        if (!gl || !program) return;
+        this.loc = {
+            time: gl.getUniformLocation(program, 'uTime'),
+            resolution: gl.getUniformLocation(program, 'uResolution'),
+            colorStops: gl.getUniformLocation(program, 'uColorStops'),
+            amplitude: gl.getUniformLocation(program, 'uAmplitude'),
+            blend: gl.getUniformLocation(program, 'uBlend')
+        };
+    };
+
+    AuroraBg.prototype._setUniforms = function () {
+        var gl = this.gl;
+        if (!gl || !this.program) return;
 
         var colors = this.colorStops.map(hexToRgb);
         var flat = new Float32Array(colors.flat());
-        var colorLoc = gl.getUniformLocation(program, 'uColorStops');
-        if (colorLoc) gl.uniform3fv(colorLoc, flat);
-
-        var ampLoc = gl.getUniformLocation(program, 'uAmplitude');
-        if (ampLoc) gl.uniform1f(ampLoc, this.amplitude);
-
-        var blendLoc = gl.getUniformLocation(program, 'uBlend');
-        if (blendLoc) gl.uniform1f(blendLoc, this.blend);
+        if (this.loc.colorStops) gl.uniform3fv(this.loc.colorStops, flat);
+        if (this.loc.amplitude) gl.uniform1f(this.loc.amplitude, this.amplitude);
+        if (this.loc.blend) gl.uniform1f(this.loc.blend, this.blend);
     };
 
     AuroraBg.prototype._resize = function () {
         if (!this.canvas || !this.gl) return;
         var rect = this.container.getBoundingClientRect();
-        var dpr = Math.min(devicePixelRatio || 1, 2);
+        // 0.75x 渲染：极光是低频模糊渐变，降采样后几乎不可辨，像素填充率降约 44%
+        var dpr = Math.min(devicePixelRatio || 1, 2) * 0.75;
         var w = Math.round(rect.width * dpr);
         var h = Math.round(rect.height * dpr);
         if (this.canvas.width !== w || this.canvas.height !== h) {
@@ -276,31 +299,75 @@
             this.canvas.style.width = rect.width + 'px';
             this.canvas.style.height = rect.height + 'px';
             if (this.program) {
-                var gl = this.gl;
-                gl.useProgram(this.program);
-                var resLoc = gl.getUniformLocation(this.program, 'uResolution');
-                if (resLoc) gl.uniform2f(resLoc, w, h);
+                this.gl.useProgram(this.program);
+                if (this.loc.resolution) this.gl.uniform2f(this.loc.resolution, w, h);
             }
             this.gl.viewport(0, 0, w, h);
         }
     };
 
+    // 是否该渲染：页面可见 且 未被外部暂停（例如播放页在播视频）
+    AuroraBg.prototype._shouldRender = function () {
+        return !!this.running && !this.hidden && !this.externalPaused;
+    };
+
+    // 统一进出"渲染/停止"两个状态，并平移时间基准 —— 停过多久，恢复后就跳过多久，
+    // 极光看起来是"冻结后接着走"，不会跳变
+    AuroraBg.prototype._syncRunState = function () {
+        var shouldRun = this._shouldRender();
+        if (shouldRun === this._active) return;
+        this._active = shouldRun;
+        if (shouldRun) {
+            if (this._stoppedAt) this.startTime += performance.now() - this._stoppedAt;
+            this._stoppedAt = 0;
+            if (this.running && !this.animId) this._tick();
+        } else {
+            this._stoppedAt = performance.now();
+            if (this.animId) {
+                cancelAnimationFrame(this.animId);
+                this.animId = null;
+            }
+        }
+    };
+
+    // 外部可暂停/恢复（播放页在播视频时暂停，把 GPU 让给解码）
+    AuroraBg.prototype.pause = function () {
+        if (this.externalPaused) return;
+        this.externalPaused = true;
+        this._syncRunState();
+    };
+
+    AuroraBg.prototype.resume = function () {
+        if (!this.externalPaused) return;
+        this.externalPaused = false;
+        this._syncRunState();
+    };
+
+    // 页面不可见（切后台/锁屏）时停止渲染，回来时接着走
+    AuroraBg.prototype._onVisibilityChange = function () {
+        this.hidden = document.hidden;
+        this._syncRunState();
+    };
+
     AuroraBg.prototype._tick = function () {
-        if (!this.running) return;
-        this.animId = requestAnimationFrame(this._tick.bind(this));
+        if (!this._shouldRender()) { this.animId = null; return; }
+        this.animId = requestAnimationFrame(this.boundTick);
+
+        // 限帧 30fps：极光漂移极缓，肉眼无差别，GPU 占用减半
+        var now = performance.now();
+        if (now - this.lastFrame < this.frameInterval) return;
+        this.lastFrame = now;
         this._render();
     };
 
     AuroraBg.prototype._render = function () {
         var gl = this.gl;
-        var program = this.program;
-        if (!gl || !program) return;
+        if (!gl || !this.program) return;
 
-        gl.useProgram(program);
+        gl.useProgram(this.program);
 
         var elapsed = (performance.now() - this.startTime) * 0.001 * this.speed;
-        var timeLoc = gl.getUniformLocation(program, 'uTime');
-        if (timeLoc) gl.uniform1f(timeLoc, elapsed);
+        if (this.loc.time) gl.uniform1f(this.loc.time, elapsed);
 
         gl.bindVertexArray(this.vao);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -313,6 +380,7 @@
             this.animId = null;
         }
         window.removeEventListener('resize', this.boundResize);
+        document.removeEventListener('visibilitychange', this.boundVisibility);
         if (resizeObserver) {
             resizeObserver.disconnect();
             resizeObserver = null;

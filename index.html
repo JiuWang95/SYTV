@@ -160,8 +160,9 @@
            冷启动没有该标记，保持纯黑（背后本来也没内容可模糊），同时省掉模糊的合成开销 */
         #bootSplash.boot-splash--blur {
             background: rgba(0, 0, 0, 0.5);
-            -webkit-backdrop-filter: blur(20px) saturate(120%);
-            backdrop-filter: blur(20px) saturate(120%);
+            /* 12px 与 20px 在观感上几乎没有差别，但全屏模糊的合成开销明显更低 */
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+            backdrop-filter: blur(12px) saturate(120%);
         }
         /* 减弱动效偏好：不跑粒子，改为静态字样——既有反馈，又不违背用户的动效设置 */
         #bootSplash .boot-splash-static {
@@ -231,7 +232,7 @@
         var STALL_AFTER_MS = 2500; // 进度停滞多久后开始兜底缓推
         var STALL_RATE = 0.09;     // 兜底缓推速度（每秒进度增量）
         var MAX_WAIT_MS = 8000;    // 无论加载如何，8s 后必须开始让出页面
-        var PARTICLE_MAX = 1200;
+        var PARTICLE_MAX = 800;    // 800 与 1200 观感几乎无差，逐帧填充更省
         var ALPHA_STEPS = 32;
         var PALETTE = [
             { rgb: [236, 72, 153], weight: 0.55 },   // 主题粉
@@ -1180,7 +1181,7 @@
 
 
     <script src="dist/leletv-core.hvev6v.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-app.danzrx.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-app.9l856j.js?v=v3.4.0" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

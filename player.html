@@ -188,7 +188,7 @@
     <script src="libs/hls.min.js?v=v3.4.0" defer crossorigin="anonymous"></script>
     <script src="libs/artplayer.min.js?v=v3.4.0" defer crossorigin="anonymous"></script>
     <script src="dist/leletv-core.hvev6v.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-player.2zdr6p.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-player.cw9deb.js?v=v3.4.0" defer></script>
 
     <script>
         // 创建全局环境变量对象
@@ -225,13 +225,27 @@
     <script>
         // 初始化邮箱点击处理器
         document.addEventListener('DOMContentLoaded', function() {
-            initAurora({
+            var auroraInstances = initAurora({
                 selector: '#auroraContainer',
                 colorStops: ['#3A29FF', '#ec4899', '#FFD700'],
                 amplitude: 0.5,
                 blend: 0.8,
                 speed: 0.5
             });
+
+            // 视频播放期间把 GPU 让给解码：极光冻结，暂停/播完再接着走。
+            // video 的 play/pause 不冒泡，所以在捕获阶段监听
+            function setAuroraPaused(paused) {
+                (auroraInstances || []).forEach(function (inst) {
+                    if (!inst) return;
+                    if (paused) inst.pause();
+                    else inst.resume();
+                });
+            }
+            document.addEventListener('play', function () { setAuroraPaused(true); }, true);
+            document.addEventListener('pause', function () { setAuroraPaused(false); }, true);
+            document.addEventListener('ended', function () { setAuroraPaused(false); }, true);
+
             if (typeof setupEmailClickHandlers === 'function') {
                 setupEmailClickHandlers();
             }
