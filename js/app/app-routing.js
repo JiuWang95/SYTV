@@ -58,7 +58,10 @@ var _entranceStarted = false;
 // （首帧其实已由 css 的 html[data-init-page="settings"] 规则藏住，这里接手继续隐藏）
 var _particleIncoming = false;
 try { _particleIncoming = sessionStorage.getItem(PARTICLE_SWEEP_KEY) === '1'; } catch (e) { /* 忽略 */ }
-if (_particleIncoming) {
+// 启动占位（index.html 的 #bootSplash）已接管这次切换的遮罩：它自己就能挡住首帧，
+// 所以不必再藏设置页内容——反过来要放行，让新页面在模糊背景里若隐若现
+var _bootSplashOwnsTransition = !!window.__LELETV_BOOT_INTRO__;
+if (_particleIncoming && !_bootSplashOwnsTransition) {
   document.documentElement.setAttribute('data-particle-in', '1');
   // 兜底：任何原因导致入场动画没启动，也不能让设置页一直不可见
   setTimeout(function () {
@@ -67,7 +70,7 @@ if (_particleIncoming) {
     }
   }, 3000);
 } else {
-  // 非过渡加载（手动刷新 / 直链打开设置页）：立刻放行首帧隐藏
+  // 非过渡加载（手动刷新 / 直链打开设置页），或本次由启动占位接管：立刻放行首帧隐藏
   document.documentElement.setAttribute('data-domain-shown', '1');
 }
 
@@ -607,6 +610,14 @@ function playDomainTransition() {
     incoming = sessionStorage.getItem(PARTICLE_SWEEP_KEY) === '1';
     if (incoming) sessionStorage.removeItem(PARTICLE_SWEEP_KEY);
   } catch (e) { /* 忽略 */ }
+
+  // 启动占位（index.html 的 #bootSplash）在本次重载后已经播过同一套"粒子凝聚 → 爆开"，
+  // 且背景已换成模糊的下层页面。这里不再重复播粒子，只做面板交接：
+  // 摘掉首帧隐藏，让设置页内容就绪，等占位爆开淡出后自然露出来
+  if (window.__LELETV_BOOT_INTRO__) {
+    _resetPanel();
+    return;
+  }
 
   if (!incoming || !_domainPanel() || _particleReducedMotion()) {
     _resetPanel();

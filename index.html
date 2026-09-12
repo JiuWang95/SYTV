@@ -155,6 +155,14 @@
             width: 100%;
             height: 100%;
         }
+        /* 数据域切换（私密 ↔ 正常）重载后的这一帧：上一次页面已把标记写进 sessionStorage，
+           背景就从纯黑换成"模糊的下层页面" —— 粒子凝聚时背后是新模式的内容在虚化中浮现。
+           冷启动没有该标记，保持纯黑（背后本来也没内容可模糊），同时省掉模糊的合成开销 */
+        #bootSplash.boot-splash--blur {
+            background: rgba(0, 0, 0, 0.5);
+            -webkit-backdrop-filter: blur(20px) saturate(120%);
+            backdrop-filter: blur(20px) saturate(120%);
+        }
         /* 减弱动效偏好：不跑粒子，改为静态字样——既有反馈，又不违背用户的动效设置 */
         #bootSplash .boot-splash-static {
             display: none;
@@ -190,6 +198,18 @@
         var splash = document.getElementById('bootSplash');
         var canvas = document.getElementById('bootSplashCanvas');
         if (!splash) return;
+
+        // 本次加载是否来自数据域切换（设置页卡片先消散、再把标记写进 sessionStorage 后重载）。
+        // 键名与 js/app/app-routing.js 的 PARTICLE_SWEEP_KEY 一致，改动需同步；
+        // 此处必须在 bundle 执行前读，bundle 里的 playDomainTransition 会把它清掉
+        var fromDomainSwitch = false;
+        try { fromDomainSwitch = sessionStorage.getItem('leletv_particle_sweep') === '1'; } catch (e) { /* 忽略 */ }
+        if (fromDomainSwitch) {
+            splash.classList.add('boot-splash--blur');
+            // 放行首帧隐藏：切换后的新页面内容要在模糊背景里若隐若现。
+            // 遮罩是"半透明底 + 虚化"且铺满首帧，足以盖住未就绪的内容，不会出现内容蹦出来
+            document.documentElement.setAttribute('data-domain-shown', '1');
+        }
 
         function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
         function clamp01(v) { return v < 0 ? 0 : (v > 1 ? 1 : v); }
@@ -1160,7 +1180,7 @@
 
 
     <script src="dist/leletv-core.hvev6v.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-app.z31nwh.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-app.danzrx.js?v=v3.4.0" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>
