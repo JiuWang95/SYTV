@@ -1,3 +1,22 @@
+// ===== 主题色存储键 =====
+// 主题色两个数据域各存一套，键名本身已带模式，因此不能套 scopedKey 的 hidden:: 前缀。
+// 键名的唯一来源是 js/ui/theme-system.js 暴露的 LeLeThemeStore，这里只是兜底
+function themeStoreKeys() {
+    const store = window.LeLeThemeStore;
+    return (store && store.KEYS) || ['leletv_theme_normal', 'leletv_theme_hidden'];
+}
+
+function isThemeStoreKey(key) {
+    const store = window.LeLeThemeStore;
+    if (store && store.isKey) return store.isKey(key);
+    return themeStoreKeys().indexOf(key) !== -1;
+}
+
+// 配置项名 → localStorage 键：主题色用原键名，其余按当前数据域加 scoped 前缀
+function itemStorageKey(item) {
+    return isThemeStoreKey(item) ? item : scopedKey(item);
+}
+
 async function importConfigFromUrl() {
     showModal({
         title: '从URL导入配置',
@@ -36,7 +55,7 @@ async function importConfigFromUrl() {
                     // hiddenContentMode 不参与恢复：隐藏模式只能由开关 + 密码进入
                     for (let item in config.data) {
                         if (item === HIDDEN_MODE_KEY) continue;
-                        localStorage.setItem(scopedKey(item), config.data[item]);
+                        localStorage.setItem(itemStorageKey(item), config.data[item]);
                     }
                     showToast('配置文件导入成功，3 秒后自动刷新本页面。', 'success');
                     setTimeout(() => window.location.reload(), 3000);
@@ -81,7 +100,7 @@ async function importConfig() {
             // 导入配置（hiddenContentMode 不参与恢复：隐藏模式只能由开关 + 密码进入）
             for (let item in config.data) {
                 if (item === HIDDEN_MODE_KEY) continue;
-                localStorage.setItem(scopedKey(item), config.data[item]);
+                localStorage.setItem(itemStorageKey(item), config.data[item]);
             }
 
             showToast('配置文件导入成功，3 秒后自动刷新本页面。', 'success');
@@ -112,6 +131,14 @@ async function exportConfig() {
     // 导出设置项（scoped 键按当前数据域读取，隐藏域导出的是 hidden:: 版本）
     settingsToExport.forEach(key => {
         const value = localStorage.getItem(scopedKey(key));
+        if (value !== null) {
+            items[key] = value;
+        }
+    });
+
+    // 导出主题色：两个数据域各存一套，键名自带模式，直接按原键名读取
+    themeStoreKeys().forEach(key => {
+        const value = localStorage.getItem(key);
         if (value !== null) {
             items[key] = value;
         }

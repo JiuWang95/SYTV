@@ -267,9 +267,15 @@
         // 本次加载是否来自数据域切换（设置页卡片先消散、再把标记写进 sessionStorage 后重载）。
         // 键名与 js/app/app-routing.js 的 PARTICLE_SWEEP_KEY 一致，改动需同步；
         // 此处必须在 bundle 执行前读，bundle 里的 playDomainTransition 会把它清掉
-        // 主题色：正常模式霓虹粉，私密模式鸿蒙便签黄（属性由 head 内联脚本在首帧前设置好）。
-        // 占位脚本早于 dist bundle 执行，因此这里不依赖任何全局函数
+        // 主题色：优先取 head 内联脚本刚写下的行内值——它已按「当前模式 + 用户所选主题色」算好，
+        // 冷启动与模式切换的粒子因此都会跟着颜色与模式走；取不到（没设置过主题、样式表也还没到）
+        // 时按模式回落到 css 默认色。占位脚本早于 dist bundle 执行，故这里不依赖任何全局函数
         var THEME_RGB = (function () {
+            try {
+                var v = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgb').trim();
+                var p = v.split(',').map(function (n) { return parseInt(n, 10); });
+                if (p.length === 3 && p[0] >= 0 && p[1] >= 0 && p[2] >= 0) return p;
+            } catch (e) { /* 忽略，走下面的模式回退 */ }
             try {
                 return document.documentElement.hasAttribute('data-hidden-mode') ? [184, 115, 51] : [236, 72, 153];
             } catch (e) { return [236, 72, 153]; }
@@ -310,9 +316,8 @@
         var PARTICLE_MAX = 800;    // 800 与 1200 观感几乎无差，逐帧填充更省
         var ALPHA_STEPS = 32;
         var PALETTE = [
-            { rgb: THEME_RGB, weight: 0.55 },        // 主题色
-            { rgb: [255, 255, 255], weight: 0.25 },  // 高光白
-            { rgb: [226, 232, 240], weight: 0.2 }    // 浅灰
+            // 只用主题色，不掺白色/浅灰：色调完全跟随所选主题色与当前模式
+            { rgb: THEME_RGB, weight: 1 }
         ];
 
         // ---------- 绘制基础设施 ----------
@@ -925,7 +930,7 @@
                                 <div class="dash-action-grid">
                                     <button data-action="import-config" class="dash-action-btn dash-action-btn-gray">导入配置</button>
                                     <button data-action="export-config" class="dash-action-btn dash-action-btn-export">导出配置</button>
-                                    <button data-action="clear-cache" class="dash-action-btn dash-action-btn-danger">清除Cookie</button>
+                                    <button data-action="clear-cache" class="dash-action-btn dash-action-btn-danger">清除缓存</button>
                                 </div>
                             </div>
                         </div>
@@ -1270,8 +1275,8 @@
 
 
 
-    <script src="dist/leletv-core.ujnmva.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-app.nigon4.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-core.ftd3c7.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-app.8r1iyb.js?v=v3.4.0" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

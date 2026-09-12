@@ -2159,23 +2159,28 @@ details[open] .invite-device-toggle::before {
 }
 
 /* 窄屏（单列布局）：列间距收紧，避免列宽被 gap 吃掉、标签被挤到换行；
-   同时把主题卡片提到第 2 位（紧跟数据源），其余卡片维持原有顺序 */
+   同时把主题、功能开关提前（数据源 > 主题 > 功能开关 > 其余），其余卡片维持原有顺序 */
 @media (max-width: 767px) {
     .theme-disc-grid {
         gap: 1rem 0.5rem;
     }
 
-    /* 三档 order：数据源 1 < 主题 2 < 其余 3，组内仍按 DOM 顺序排列 */
+    /* 四档 order。用 :has() 按卡片内的标志元素认卡片，而不是靠 DOM 位置——
+       以后在设置页前面插卡片也不会把顺序带歪 */
     .settings-dashboard-grid > * {
-        order: 3;
+        order: 4;
     }
 
-    .settings-dashboard-grid > :first-child {
+    .settings-dashboard-grid > :has(#apiCheckboxes) {
         order: 1;
     }
 
     .settings-dashboard-grid > .theme-full-width {
         order: 2;
+    }
+
+    .settings-dashboard-grid > :has(#hiddenContentModeToggle) {
+        order: 3;
     }
 }
 

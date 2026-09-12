@@ -34,10 +34,10 @@ var PARTICLE_WIND_X = 42;          // 风的水平推力（px，正值向右；�
 var PARTICLE_WIND_Y = -18;         // 风的上升分量（px，负值向上）
 var PARTICLE_GUST = 0.3;           // 阵风幅度：整体风力的周期性强弱（0 = 恒定风）
 var PARTICLE_ALPHA_STEPS = 32;     // 透明度量化档数（预生成颜色串，避免逐帧拼接字符串）
-var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题色 + 高光白 + 浅灰
-  { rgb: null, weight: 0.55 },       // 主题色：首次构建颜色表时按当前主题填充（见 _particleColorTable）
-  { rgb: [255, 255, 255], weight: 0.25 },
-  { rgb: [226, 232, 240], weight: 0.2 }
+// 粒子只用主题色本身，不掺白色/浅灰：色调完全跟随所选主题色与当前模式，
+// 层次感由粒子的尺寸与透明度随机给出。rgb 为 null 占位，首次构建颜色表时填充（见 _particleColorTable）
+var PARTICLE_PALETTE = [
+  { rgb: null, weight: 1 }
 ];
 
 // 重载后的入场：粒子自随机位置螺旋向中心凝聚成 LeLeTV（与首页标题同款的 MapleMono 玻璃质感字样），

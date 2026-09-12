@@ -256,7 +256,9 @@ const CACHE_CONFIG = {
         'hasInitializedDefaults',// 是否已初始化默认值
         'viewingHistory',        // 观看历史记录
         'videoSearchHistory',    // 搜索历史记录
-        'passwordVerified'       // 密码验证状态
+        'passwordVerified',      // 密码验证状态
+        'leletv_theme_normal',   // 主题色（正常模式）
+        'leletv_theme_hidden'    // 主题色（私密模式）
     ],
     // 带时间戳的临时数据键名前缀
     temporaryKeyPrefixes: [

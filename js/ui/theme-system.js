@@ -25,6 +25,13 @@
     var KEY_HIDDEN = 'leletv_theme_hidden';
     var MODE_ATTR = 'data-hidden-mode';
 
+    // 键名对外暴露一份，供设置项的导入/导出等模块复用（键名在这里是唯一来源，
+    // 免得别处再抄一遍字符串、两边不同步）
+    window.LeLeThemeStore = {
+        KEYS: [KEY_NORMAL, KEY_HIDDEN],
+        isKey: function (key) { return key === KEY_NORMAL || key === KEY_HIDDEN; }
+    };
+
     // 默认落点：与 css 的 :root 默认色一致的预设
     var DEFAULT_KEY = 'neon';
 
@@ -289,7 +296,6 @@
     var BURST_GATHER_MS = 560;
     var BURST_BURST_MS = 430;
     var BURST_FADE_MS = 200;
-    var TONE_OTHER = [[255, 255, 255], [226, 232, 240]]; // 主题色之外的高光白与浅灰
 
     function reducedMotion() {
         try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
@@ -324,12 +330,9 @@
                 r1: maxR * (0.35 + Math.random() * 0.90),   // 爆开终点半径
                 swirl: (0.7 + Math.random() * 0.9) * (rnd < 0.5 ? -1 : 1),
                 size: 0.8 + Math.random() * 1.7,
-                tone: rnd < 0.62 ? 0 : (rnd < 0.85 ? 1 : 2), // 0 = 主题色，其余为高光
                 delay: Math.random() * 0.18
             });
         }
-        // 按色调分组绘制：同一色调只改一次 fillStyle，减少逐粒子字符串构造
-        parts.sort(function (a, b) { return a.tone - b.tone; });
 
         var total = BURST_GATHER_MS + BURST_BURST_MS + BURST_FADE_MS;
         var start = 0, switched = false;
@@ -342,9 +345,10 @@
             if (t >= BURST_GATHER_MS && !switched) {
                 switched = true;
                 switchTheme();      // 爆开瞬间换色
-                lastTone = -1;
             }
             var useRgb = switched ? newRgb : oldRgb;
+            // 所有粒子同色：每帧只设一次 fillStyle，爆开换色那一帧自然变成新色
+            ctx.fillStyle = 'rgb(' + useRgb[0] + ',' + useRgb[1] + ',' + useRgb[2] + ')';
 
             var gathering = t < BURST_GATHER_MS;
             var p = gathering
@@ -364,18 +368,12 @@
                     alpha = 0.85 * (1 - lp);
                 }
                 var a = q.a0 + q.swirl * le * (gathering ? 2.6 : 1.1);
-                var c = q.tone === 0 ? useRgb : TONE_OTHER[q.tone - 1];
-                if (q.tone !== lastTone) {
-                    lastTone = q.tone;
-                    ctx.fillStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
-                }
                 ctx.globalAlpha = alpha;
                 ctx.beginPath();
                 ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, q.size, 0, 6.2832);
                 ctx.fill();
             }
             ctx.globalAlpha = 1;
-            lastTone = -1; // 下一帧色调可能随 switched 变化，重置分组游标
 
             if (t >= BURST_GATHER_MS + BURST_BURST_MS) {
                 cv.style.opacity = String(1 - clamp((t - BURST_GATHER_MS - BURST_BURST_MS) / BURST_FADE_MS, 0, 1));
@@ -388,7 +386,6 @@
             }
         }
 
-        var lastTone = -1;
         requestAnimationFrame(frame);
     }
 
