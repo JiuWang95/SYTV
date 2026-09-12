@@ -22,6 +22,9 @@ function verifyAdminPassword() {
 
         const overlay = showModal({
             title: '私密内容验证',
+            // 点右上角 × 或点击遮罩关闭时也必须 resolve(false)。否则调用方的 await 会一直挂起，
+            // 开关视觉停留在「开」（存储未写入，刷新后才回退）
+            onClose: () => resolve(false),
             content: (body) => {
                 body.innerHTML = `
                     <p class="text-gray-300 mb-4">请输入私密密码以解锁🔓私密🈲内容过滤设置</p>

@@ -701,7 +701,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 0;
-    cursor: pointer;
+    cursor: default; /* 整行不再暗示可点击：只有右侧开关可切换 */
     gap: 0.5rem;
 }
 
@@ -736,6 +736,8 @@
 }
 
 .dash-switch-toggle {
+    display: block; /* 由 div 改为 label，需显式 block 宽高才生效 */
+    cursor: pointer;
     width: 2.5rem;
     height: 1.25rem;
     position: relative;
