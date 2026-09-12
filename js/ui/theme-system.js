@@ -289,13 +289,22 @@
         if (custom) custom.style.setProperty('--disc-color', discColorOf(PRESETS[PRESETS.length - 1]));
     }
 
-    // ===================== 原地换色的粒子过渡 =====================
-    // 阶段：粒子自屏幕四周螺旋向中心凝聚（旧主题色）→ 爆开瞬间切入新主题色 → 向外飞散淡出。
-    // 换色动作发生在"爆开"那一刻，粒子既是转场也是新色的揭示。
+    // ===================== 换色过渡 =====================
+    // 与首屏加载动画同一套视觉：粒子自四周螺旋凝聚（旧色）→ 中心实体化出 LeLeTV（旧色）
+    // → 爆开，粒子与页面同时切成新色并向外飞散。
+    // 关键：不重载、不改动 DOM —— 页面在整段过渡里保持静止（不抖动、不重排、不换内容），
+    // 动的只有这层透明画布；新颜色要到"爆开"那一刻才落到页面上。
 
-    var BURST_GATHER_MS = 560;
-    var BURST_BURST_MS = 430;
-    var BURST_FADE_MS = 200;
+    var PHASE_GATHER_MS = 560;   // 粒子自四周收拢到星环上
+    var PHASE_BRAND_MS = 480;    // 中心 LeLeTV 实体化 + 停留（此时页面仍是旧色）
+    var PHASE_BURST_MS = 430;    // 爆开：这一刻换色，粒子自星环向外飞散
+    var PHASE_FADE_MS = 200;     // 覆盖层淡出
+    var BRAND_TEXT = 'LeLeTV';
+    // 星环：基准半径与首屏加载动画的 brandRadius 一致（字号 × 1.5），尺寸所以对得上。
+    // 它的环带是 [0.72R, 1.2R]；这里刻意做得更厚，外围散落也更多
+    var RING_IN = 0.62;          // 星环内径 / 基准半径
+    var RING_OUT = 1.55;         // 星环外径 / 基准半径
+    var RING_SPIN = 0.00025;     // 星环整体缓慢自转（弧度/毫秒）
 
     function reducedMotion() {
         try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
@@ -308,6 +317,8 @@
         var w = window.innerWidth, h = window.innerHeight;
         var cv = document.createElement('canvas');
         cv.className = 'theme-burst-canvas';
+        // 样式内联：这层只是过渡用的覆盖画布，不必占用样式表里的规则
+        cv.style.cssText = 'position:fixed;inset:0;z-index:9990;display:block;pointer-events:none;background:transparent;';
         var dpr = Math.min(window.devicePixelRatio || 1, 2);
         cv.width = Math.max(1, Math.floor(w * dpr));
         cv.height = Math.max(1, Math.floor(h * dpr));
@@ -320,13 +331,16 @@
 
         var cx = w / 2, cy = h / 2;
         var maxR = Math.sqrt(cx * cx + cy * cy);
-        var count = clamp(Math.round((w * h) / 1400), 420, 1400);
+        var brandSize = clamp(w * 0.15, 26, 82);   // 与首屏占位字样的 clamp(26px, 15vw, 82px) 对齐
+        var ringBase = brandSize * 1.5;            // 与加载动画 drawRing 的 brandRadius 同值
+        var count = clamp(Math.round((w * h) / 2000), 320, 900);
         var parts = [];
         for (var i = 0; i < count; i++) {
             var rnd = Math.random();
             parts.push({
                 a0: Math.random() * Math.PI * 2,
-                r0: maxR * (0.45 + Math.random() * 0.75),   // 凝聚起点半径
+                r0: maxR * (0.65 + Math.random() * 0.55),   // 凝聚起点：都在环外，保证是"收进来"
+                ring: RING_IN + Math.random() * (RING_OUT - RING_IN), // 该粒子落在哪一圈：内→外径之间散布
                 r1: maxR * (0.35 + Math.random() * 0.90),   // 爆开终点半径
                 swirl: (0.7 + Math.random() * 0.9) * (rnd < 0.5 ? -1 : 1),
                 size: 0.8 + Math.random() * 1.7,
@@ -334,40 +348,58 @@
             });
         }
 
-        var total = BURST_GATHER_MS + BURST_BURST_MS + BURST_FADE_MS;
-        var start = 0, switched = false;
+        var brandFrom = PHASE_GATHER_MS * 0.68;            // 凝聚尾段就让字样浮现，避免"停一下再出字"
+        var burstAt = PHASE_GATHER_MS + PHASE_BRAND_MS;    // 爆开时刻 = 换色时刻
+        var total = burstAt + PHASE_BURST_MS + PHASE_FADE_MS;
+        var start = 0, switched = false, useRgb = oldRgb;
 
         function frame(now) {
             if (!start) start = now;
             var t = now - start;
             ctx.clearRect(0, 0, w, h);
 
-            if (t >= BURST_GATHER_MS && !switched) {
+            // 颜色直到爆开那一帧才切换；此前粒子与字样一律旧色，页面也保持旧色
+            if (t >= burstAt && !switched) {
                 switched = true;
-                switchTheme();      // 爆开瞬间换色
+                switchTheme();
             }
-            var useRgb = switched ? newRgb : oldRgb;
-            // 所有粒子同色：每帧只设一次 fillStyle，爆开换色那一帧自然变成新色
+            useRgb = switched ? newRgb : oldRgb;
             ctx.fillStyle = 'rgb(' + useRgb[0] + ',' + useRgb[1] + ',' + useRgb[2] + ')';
 
-            var gathering = t < BURST_GATHER_MS;
-            var p = gathering
-                ? clamp(t / BURST_GATHER_MS, 0, 1)
-                : clamp((t - BURST_GATHER_MS) / BURST_BURST_MS, 0, 1);
+            var inGather = t < PHASE_GATHER_MS;
+            var inBrand = !inGather && t < burstAt;
+            var gp = clamp(t / PHASE_GATHER_MS, 0, 1);
+            var up = clamp((t - burstAt) / PHASE_BURST_MS, 0, 1);
+            var spin = t * RING_SPIN;    // 星环整体缓慢自转
 
             for (var i = 0; i < parts.length; i++) {
                 var q = parts[i];
-                var lp = clamp((p - q.delay) / (1 - q.delay), 0, 1); // 每颗粒子的延迟，避免整齐划一
-                var le = 1 - Math.pow(1 - lp, 3);                    // easeOutCubic
-                var r, alpha;
-                if (gathering) {
-                    r = q.r0 * (1 - le);
-                    alpha = 0.08 + 0.70 * le;
+                var lp, le, r, alpha, a;
+                // 每颗粒子有自己的环半径：在内径与外径之间铺开，环带所以有厚度、外围也更散
+                var ringR = q.ring * ringBase;
+                // 三段共用同一套角度：起始角 + 一点旋进 + 整体自转。
+                // 旋进量刻意压得很小——每颗粒子随机正反大幅旋转正是"花瓣"的来源
+                var swirl = q.swirl * 0.3;
+                if (inGather) {
+                    // 自四周收到星环上（终点是环，不是中心）
+                    lp = clamp((gp - q.delay) / (1 - q.delay), 0, 1); // 每颗粒子的延迟，避免整齐划一
+                    le = 1 - Math.pow(1 - lp, 3);                    // easeOutCubic
+                    r = q.r0 * (1 - le) + ringR * le;
+                    alpha = 0.10 + 0.78 * le;
+                    a = q.a0 + swirl * le + spin;
+                } else if (inBrand) {
+                    // 停在星环上缓慢转动，把中间留给字样
+                    r = ringR;
+                    alpha = 0.88;
+                    a = q.a0 + swirl + spin;
                 } else {
-                    r = q.r1 * le;
+                    // 自星环向外飞散
+                    lp = clamp((up - q.delay) / (1 - q.delay), 0, 1);
+                    le = 1 - Math.pow(1 - lp, 3);
+                    r = ringR + q.r1 * le;
                     alpha = 0.85 * (1 - lp);
+                    a = q.a0 + swirl + spin + le * 0.5;
                 }
-                var a = q.a0 + q.swirl * le * (gathering ? 2.6 : 1.1);
                 ctx.globalAlpha = alpha;
                 ctx.beginPath();
                 ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, q.size, 0, 6.2832);
@@ -375,8 +407,14 @@
             }
             ctx.globalAlpha = 1;
 
-            if (t >= BURST_GATHER_MS + BURST_BURST_MS) {
-                cv.style.opacity = String(1 - clamp((t - BURST_GATHER_MS - BURST_BURST_MS) / BURST_FADE_MS, 0, 1));
+            // 中心字样：凝聚尾段浮现 → 停留（旧色）→ 随爆开淡出，颜色取当前 useRgb
+            var brandIn = clamp((t - brandFrom) / (PHASE_GATHER_MS - brandFrom), 0, 1);
+            var brandOut = 1 - clamp((t - burstAt) / (PHASE_BURST_MS * 0.42), 0, 1);
+            var brandAlpha = brandIn * brandOut;
+            if (brandAlpha > 0.01) drawBrand(brandAlpha, 0.92 + 0.08 * brandIn);
+
+            if (t >= burstAt + PHASE_BURST_MS) {
+                cv.style.opacity = String(1 - clamp((t - burstAt - PHASE_BURST_MS) / PHASE_FADE_MS, 0, 1));
             }
             if (t < total) {
                 requestAnimationFrame(frame);
@@ -384,6 +422,33 @@
                 if (cv.parentNode) cv.parentNode.removeChild(cv);
                 done();
             }
+        }
+
+        /** 中心 LeLeTV：与 index.html 首屏占位、app-routing.js 的 drawBrand 同款做法 */
+        function drawBrand(alpha, scale) {
+            var rgba = function (v) { return 'rgba(' + useRgb[0] + ',' + useRgb[1] + ',' + useRgb[2] + ',' + v + ')'; };
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(cx, cy);
+            ctx.scale(scale, scale);
+            ctx.font = '900 ' + brandSize + 'px "MapleMono", monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = rgba(0.55);
+            ctx.shadowBlur = 28;
+            ctx.fillStyle = rgba(0.5);
+            ctx.fillText(BRAND_TEXT, 0, 0);
+            ctx.shadowBlur = 0;
+            var grad = ctx.createLinearGradient(0, -brandSize * 0.6, 0, brandSize * 0.6);
+            grad.addColorStop(0, rgba(0.95));
+            grad.addColorStop(0.45, rgba(0.45));
+            grad.addColorStop(1, rgba(0.18));
+            ctx.fillStyle = grad;
+            ctx.fillText(BRAND_TEXT, 0, 0);
+            ctx.strokeStyle = rgba(0.25);
+            ctx.lineWidth = 1;
+            ctx.strokeText(BRAND_TEXT, 0, 0);
+            ctx.restore();
         }
 
         requestAnimationFrame(frame);
@@ -399,7 +464,7 @@
     var _picker = null;
     var _dragging = null;
     var _dragCleanup = null;
-    var _busy = false; // 换色动画进行中，忽略重复触发
+    var _busy = false; // 过渡动画进行中：忽略重复提交
 
     function currentPickerRgb() { return hsvToRgb(_picker.h, _picker.s, _picker.v); }
     function currentPickerHex() { return rgbToHex(currentPickerRgb()); }
@@ -665,7 +730,10 @@
 
     // ===================== 应用主题 =====================
 
-    /** 提交主题：先存档 + 播放原地粒子换色，爆开瞬间替换 CSS 变量 */
+    /**
+     * 提交主题：存档后原地播放过渡动画，由它在"爆开"那一刻把新色落到页面上。
+     * 全程不重载、不动 DOM —— 页面保持静止，只有那层过渡画布在动。
+     */
     function commitTheme(key, hex) {
         if (_busy) return;
         var pal = buildPalette(hex);

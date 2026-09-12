@@ -618,16 +618,17 @@ function _domainDrawBrand(ctx, center, fontSize, scale, alpha) {
   ctx.textBaseline = 'middle';
   ctx.shadowColor = _themeRgba(0.55);
   ctx.shadowBlur = 28;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  // 字样本身也跟随主题色（与启动占位动画的 drawBrand 保持一致）
+  ctx.fillStyle = _themeRgba(0.5);
   ctx.fillText(DOMAIN_TEXT, 0, 0);
   ctx.shadowBlur = 0;
   var grad = ctx.createLinearGradient(0, -fontSize * 0.6, 0, fontSize * 0.6);
-  grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-  grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.45)');
-  grad.addColorStop(1, 'rgba(255, 255, 255, 0.18)');
+  grad.addColorStop(0, _themeRgba(0.95));
+  grad.addColorStop(0.45, _themeRgba(0.45));
+  grad.addColorStop(1, _themeRgba(0.18));
   ctx.fillStyle = grad;
   ctx.fillText(DOMAIN_TEXT, 0, 0);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.strokeStyle = _themeRgba(0.25);
   ctx.lineWidth = 1;
   ctx.strokeText(DOMAIN_TEXT, 0, 0);
   ctx.restore();

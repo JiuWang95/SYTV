@@ -238,7 +238,7 @@
             font-family: 'MapleMono', monospace;
             font-size: clamp(26px, 15vw, 82px);
             font-weight: 900;
-            color: rgba(255, 255, 255, 0.92);
+            color: rgba(var(--color-primary-rgb), 0.92);
             text-shadow: 0 0 28px rgba(var(--color-primary-rgb), 0.55);
         }
         @media (prefers-reduced-motion: reduce) {
@@ -460,16 +460,17 @@
             ctx.textBaseline = 'middle';
             ctx.shadowColor = themeRgba(0.55);
             ctx.shadowBlur = 28;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            // 字样本身也跟随主题色（与 app-routing.js 的 drawBrand 保持一致）
+            ctx.fillStyle = themeRgba(0.5);
             ctx.fillText(TEXT, 0, 0);
             ctx.shadowBlur = 0;
             var grad = ctx.createLinearGradient(0, -size * 0.6, 0, size * 0.6);
-            grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-            grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.45)');
-            grad.addColorStop(1, 'rgba(255, 255, 255, 0.18)');
+            grad.addColorStop(0, themeRgba(0.95));
+            grad.addColorStop(0.45, themeRgba(0.45));
+            grad.addColorStop(1, themeRgba(0.18));
             ctx.fillStyle = grad;
             ctx.fillText(TEXT, 0, 0);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.strokeStyle = themeRgba(0.25);
             ctx.lineWidth = 1;
             ctx.strokeText(TEXT, 0, 0);
             ctx.restore();
@@ -1275,8 +1276,10 @@
 
 
 
+
+
     <script src="dist/leletv-core.ftd3c7.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-app.8r1iyb.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-app.8ftr4b.js?v=v3.4.0" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

@@ -2149,15 +2149,6 @@ details[open] .invite-device-toggle::before {
     padding: 0.4rem 0.75rem;
 }
 
-/* 原地换色的粒子画布：盖在内容之上、气泡与启动占位之下 */
-.theme-burst-canvas {
-    position: fixed;
-    inset: 0;
-    z-index: 9990;
-    display: block;
-    pointer-events: none;
-}
-
 /* 窄屏（单列布局）：列间距收紧，避免列宽被 gap 吃掉、标签被挤到换行；
    同时把主题、功能开关提前（数据源 > 主题 > 功能开关 > 其余），其余卡片维持原有顺序 */
 @media (max-width: 767px) {
