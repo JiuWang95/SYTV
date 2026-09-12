@@ -100,7 +100,7 @@ function resetDataSourceLogic() {
     // 显示提示信息
     showToast(isHiddenContentMode()
         ? '已重置，随机选取 5 个隐藏内容源'
-        : '数据源选择逻辑已重置，将应用新的选择规则', 'success');
+        : '已重置，随机选取 5 个数据源', 'success');
     
     // 重新初始化API复选框，应用新逻辑
     initAPICheckboxes();
@@ -182,10 +182,8 @@ function applyNewDataSourceLogic() {
     const currentTime = Date.now();
     const dayInMs = 24 * 60 * 60 * 1000;
 
-    // 两个数据域的默认选中源不同：正常域 3 个固定常用源，隐藏域随机 5 个隐藏源
-    const defaultSelected = isHiddenContentMode()
-        ? getRandomDataSources(5)
-        : ["bfzy", "zuid", "wujin"];
+    // 两个数据域都在各自域内随机选 5 个源（正常域取普通源，隐藏域取隐藏源）
+    const defaultSelected = getRandomDataSources(5);
 
     if (currentVersion !== DATA_SOURCE_LOGIC_VERSION) {
         selectedAPIs = defaultSelected.slice();
