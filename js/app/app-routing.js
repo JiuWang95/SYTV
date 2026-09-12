@@ -374,6 +374,9 @@ function _homeIntroBackground() {
 // 最上层盖一张不透明 canvas，动效结束后整层淡出，露出已渲染好的首页（为首页加载提供过渡）
 function playHomeIntro() {
   if (_particleReducedMotion()) return;
+  // 启动占位（index.html 的 #bootSplash）已经播过同一套入场：粒子随加载进度凝聚 → 实体化 → 爆开。
+  // 此处直接跳过，否则新访客会连着看两遍同样的动画
+  if (window.__LELETV_BOOT_INTRO__) return;
   // 仅在首页播放：带搜索直链 / 结果页 / 其它 hash 时不打扰
   if (location.hash && location.hash !== '#home') return;
   if (!document.getElementById('page-home')) return;

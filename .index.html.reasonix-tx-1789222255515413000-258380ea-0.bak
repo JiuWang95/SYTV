@@ -155,22 +155,31 @@
             width: 100%;
             height: 100%;
         }
-        /* 减弱动效偏好：不跑粒子，改为静态字样——既有反馈，又不违背用户的动效设置 */
-        #bootSplash .boot-splash-static {
-            display: none;
+        /* 真实加载进度（粒子汇聚度只是视觉近似，这条线给出确切进度） */
+        #bootSplash .boot-splash-track {
             position: absolute;
-            top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            font-family: 'MapleMono', monospace;
-            font-size: clamp(26px, 15vw, 82px);
-            font-weight: 900;
-            color: rgba(255, 255, 255, 0.92);
-            text-shadow: 0 0 28px rgba(236, 72, 153, 0.55);
+            bottom: 22%;
+            transform: translateX(-50%);
+            width: 88px;
+            height: 1px;
+            border-radius: 9999px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        #bootSplash .boot-splash-bar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 0%;
+            border-radius: 9999px;
+            background: #ec4899;
+            transition: width 0.24s var(--ease-out-quart, cubic-bezier(0.25, 0.46, 0.45, 0.94));
         }
         @media (prefers-reduced-motion: reduce) {
-            #bootSplash canvas { display: none; }
-            #bootSplash .boot-splash-static { display: block; }
+            /* 降级：不跑粒子，只留进度线并居中 */
+            #bootSplash .boot-splash-track { bottom: 50%; }
         }
     </style>
 </head>
@@ -181,7 +190,7 @@
          dist bundle（defer，弱网下最后才到）之前就动起来 -->
     <div id="bootSplash" aria-hidden="true">
         <canvas id="bootSplashCanvas"></canvas>
-        <span class="boot-splash-static">LeLeTV</span>
+        <div class="boot-splash-track"><div class="boot-splash-bar" id="bootSplashBar"></div></div>
     </div>
     <script>
     (function () {
@@ -189,6 +198,7 @@
 
         var splash = document.getElementById('bootSplash');
         var canvas = document.getElementById('bootSplashCanvas');
+        var bar = document.getElementById('bootSplashBar');
         if (!splash) return;
 
         function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
@@ -266,53 +276,145 @@
         }
 
         var particles = [];
+        var glyphPoints = [];
 
-        function makeParticles(brandRadius) {
+        // 采样 "LeLeTV" 的字形像素：粒子最终汇聚到这些点上，拼出字样本身（不再有外围环带）
+        function sampleGlyph(step) {
+            var size = brandFontSize();
+            var c = center();
+            var off = document.createElement('canvas');
+            off.width = Math.max(1, Math.floor(viewW * dpr));
+            off.height = Math.max(1, Math.floor(viewH * dpr));
+            var octx = off.getContext('2d');
+            if (!octx) return null;
+            octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            octx.font = '900 ' + size + 'px "MapleMono", monospace';
+            octx.textAlign = 'center';
+            octx.textBaseline = 'middle';
+            octx.fillStyle = '#ffffff';
+            octx.fillText(TEXT, c.x, c.y);
+
+            var halfW = octx.measureText(TEXT).width / 2 + size * 0.25;
+            var halfH = size * 0.8;
+            var left = Math.max(0, Math.floor(c.x - halfW));
+            var top = Math.max(0, Math.floor(c.y - halfH));
+            var boxW = Math.min(viewW - left, Math.ceil(halfW * 2));
+            var boxH = Math.min(viewH - top, Math.ceil(halfH * 2));
+            if (boxW <= 0 || boxH <= 0) return null;
+
+            var pw = Math.floor(boxW * dpr);
+            var ph = Math.floor(boxH * dpr);
+            var data;
+            try {
+                data = octx.getImageData(Math.floor(left * dpr), Math.floor(top * dpr), pw, ph).data;
+            } catch (e) { return null; }
+
+            var pts = [];
+            var s = Math.max(1, Math.round(step * dpr));
+            for (var y = 0; y < ph; y += s) {
+                for (var x = 0; x < pw; x += s) {
+                    if (data[(y * pw + x) * 4 + 3] > 128) {
+                        pts.push({ x: left + (x + s / 2) / dpr, y: top + (y + s / 2) / dpr });
+                    }
+                }
+            }
+            return pts;
+        }
+
+        // 自适应步长：采样点数既能把字形填满，又不超出粒子预算
+        function buildGlyphPoints() {
+            var step = 2;
+            var pts = sampleGlyph(step) || [];
+            var guard = 0;
+            while (pts.length > PARTICLE_MAX && step < 12 && guard++ < 10) {
+                step += 1;
+                pts = sampleGlyph(step) || pts;
+            }
+            while (pts.length && pts.length < 400 && step > 1 && guard++ < 20) {
+                step -= 0.5;
+                pts = sampleGlyph(step) || pts;
+            }
+            return pts;
+        }
+
+        function makeParticle(pt, c) {
+            // 目标点带一点抖动：字形边缘不会是一张整齐的网格，更像粒子自己找到了位置
+            var tx = pt.x + (Math.random() - 0.5) * 1.2;
+            var ty = pt.y + (Math.random() - 0.5) * 1.2;
+            var dx = tx - c.x;
+            var dy = ty - c.y;
+            return {
+                tx: tx,                                      // 负责的字形点
+                ty: ty,
+                rd: Math.sqrt(dx * dx + dy * dy),            // 目标点的极坐标（用于螺旋汇聚）
+                ad: Math.atan2(dy, dx),
+                a0: Math.random() * Math.PI * 2,             // 起始角度
+                r0: c.maxR * (0.5 + Math.random() * 0.8),    // 起始半径（画面外缘）
+                spin: (Math.random() - 0.5) * 1.6,
+                size: 1.2 + Math.random() * 1.4,
+                color: pickColor(),
+                delay: Math.random() * GATHER_MS * 0.25,
+                px: c.x,
+                py: c.y,
+                alpha: 0
+            };
+        }
+
+        function makeParticles(points) {
             var c = center();
             var list = [];
-            for (var i = 0; i < PARTICLE_MAX; i++) {
-                list.push({
-                    a0: Math.random() * Math.PI * 2,
-                    r0: c.maxR * (0.35 + Math.random() * 0.6),
-                    r1: brandRadius * (0.7 + Math.random() * 0.6),
-                    spin: (0.5 + Math.random() * 0.85) * (Math.random() < 0.5 ? -1 : 1),
-                    size: 0.9 + Math.random() * 1.4,
-                    color: pickColor(),
-                    delay: Math.random() * GATHER_MS * 0.18,
-                    a1: 0,
-                    px: c.x,
-                    py: c.y,
-                    alpha: 0
-                });
-            }
+            for (var i = 0; i < points.length; i++) list.push(makeParticle(points[i], c));
             return list;
         }
 
-        // 螺旋凝聚：elapsed 沿用原实现的时间语义（约 816ms 即全部到位）
+        // 字体/视口变化后：重新采样字形，把新目标点改派给现有粒子（粒子当前位置不变，只是换了落点）
+        function retargetParticles(points) {
+            if (!points.length || !particles.length) return;
+            var c = center();
+            for (var i = 0; i < particles.length; i++) {
+                var p = particles[i];
+                var pt = points[i % points.length];
+                var dx = pt.x - c.x;
+                var dy = pt.y - c.y;
+                p.tx = pt.x;
+                p.ty = pt.y;
+                p.rd = Math.sqrt(dx * dx + dy * dy);
+                p.ad = Math.atan2(dy, dx);
+            }
+        }
+
+        // 汇聚：粒子沿最短角差螺旋收拢到各自负责的字形点
         function updateGather(list, elapsed, c) {
             var span = Math.max(1, GATHER_MS);
             for (var i = 0; i < list.length; i++) {
                 var p = list[i];
                 var t = clamp01((elapsed - p.delay) / span);
                 var e = 1 - Math.pow(1 - t, 3);
-                var r = p.r0 + (p.r1 - p.r0) * e;
-                var a = p.a0 + p.spin * Math.PI * 2.4 * (1 - Math.pow(1 - t, 2));
-                p.a1 = a;
+                var r = p.r0 + (p.rd - p.r0) * e;
+                var delta = p.ad - p.a0;
+                delta -= Math.PI * 2 * Math.round(delta / (Math.PI * 2)); // 走最近的一侧，别绕远
+                var a = p.a0 + delta * e + p.spin * (1 - e) * 0.8;
                 p.px = c.x + Math.cos(a) * r;
                 p.py = c.y + Math.sin(a) * r;
                 p.alpha = 0.12 + 0.88 * t;
             }
         }
 
+        // 爆开：从各自字形点沿径向炸开，并带一点切向旋转
         function updateBurst(list, elapsed, c) {
             var t = clamp01(elapsed / BURST_MS);
             var e = 1 - Math.pow(1 - t, 2);
             for (var i = 0; i < list.length; i++) {
                 var p = list[i];
-                var a = p.a1 + p.spin * Math.PI * 1.1 * e;
-                var r = p.r1 + (p.r0 * 0.85 + 140) * e;
-                p.px = c.x + Math.cos(a) * r;
-                p.py = c.y + Math.sin(a) * r;
+                var dx = p.tx - c.x;
+                var dy = p.ty - c.y;
+                var d = Math.sqrt(dx * dx + dy * dy) || 1;
+                var ux = dx / d;
+                var uy = dy / d;
+                var push = 70 + 320 * e;
+                var swirl = p.spin * (26 + 120 * e);
+                p.px = p.tx + ux * push - uy * swirl;
+                p.py = p.ty + uy * push + ux * swirl;
                 var al = 1 - t;
                 p.alpha = al * al;
             }
@@ -329,23 +431,6 @@
                 ctx.fillStyle = table[p.color][idx];
                 ctx.fillRect(p.px, p.py, p.size, p.size);
             }
-        }
-
-        function drawRing(c, radius, alpha) {
-            if (alpha <= 0.01) return;
-            ctx.save();
-            ctx.globalAlpha = alpha;
-            var inner = Math.max(1, radius * 0.72);
-            var outer = Math.max(inner + 1, radius * 1.2);
-            var grad = ctx.createRadialGradient(c.x, c.y, inner, c.x, c.y, outer);
-            grad.addColorStop(0, 'rgba(236,72,153,0)');
-            grad.addColorStop(0.55, 'rgba(236,72,153,0.42)');
-            grad.addColorStop(1, 'rgba(236,72,153,0)');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(c.x, c.y, outer, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
         }
 
         function drawBrand(c, size, scale, alpha) {
@@ -374,11 +459,19 @@
             ctx.restore();
         }
 
-        // MapleMono 由 JS 注册（非 CSS @font-face），字体到位后每帧绘制自动换用
+        // MapleMono 由 JS 注册（非 CSS @font-face）。字形随字体变化，字体到位后要重新采样字形点，
+        // 否则粒子会一直往回退字体（monospace）的字形上汇聚
         try {
             if (window.FontFace) {
                 var face = new FontFace('MapleMono', 'url(/fonts/MapleMono-Italic.ttf)');
-                face.load().then(function () { document.fonts.add(face); }).catch(function () { /* 回退 monospace */ });
+                face.load().then(function () {
+                    document.fonts.add(face);
+                    var pts = buildGlyphPoints();
+                    if (pts.length) {
+                        glyphPoints = pts;
+                        retargetParticles(pts);
+                    }
+                }).catch(function () { /* 回退 monospace */ });
             }
         } catch (e) { /* 忽略 */ }
 
@@ -386,11 +479,11 @@
         var progress = 0;
         var lastProgressAt = now();
 
-        // 记录真实加载进度：只驱动粒子汇聚度，界面上不再有独立的进度条
         function mark(value) {
             if (value <= progress) return;
             progress = value;
             lastProgressAt = now();
+            if (bar) bar.style.width = Math.round(value * 100) + '%';
         }
 
         function criticalStylesReady() {
@@ -471,14 +564,29 @@
         }
 
         if (animate) {
-            // 占位已经演过入场 → 通知首页跳过 playHomeIntro，避免同一套动画播两遍
-            window.__LELETV_BOOT_INTRO__ = true;
             sizeCanvas();
-            particles = makeParticles(brandFontSize() * 1.5);
-            window.addEventListener('resize', sizeCanvas);
-            requestAnimationFrame(frame);
-        } else {
-            // 降级（减弱动效 / 无 canvas）：不跑粒子，只保留进度线，等首页初始化完成即淡出。
+            glyphPoints = buildGlyphPoints();
+            if (!glyphPoints.length) {
+                // 拿不到字形（canvas 受限等）就别硬撑一个空动画，退化成纯进度线
+                animate = false;
+            } else {
+                // 占位已经演过入场 → 通知首页跳过 playHomeIntro，避免同一套动画播两遍
+                window.__LELETV_BOOT_INTRO__ = true;
+                particles = makeParticles(glyphPoints);
+                window.addEventListener('resize', function () {
+                    sizeCanvas();
+                    var pts = buildGlyphPoints();
+                    if (pts.length) {
+                        glyphPoints = pts;
+                        retargetParticles(pts);
+                    }
+                });
+                requestAnimationFrame(frame);
+            }
+        }
+
+        if (!animate) {
+            // 降级（减弱动效 / 无 canvas / 拿不到字形）：不跑粒子，只保留进度线，等首页初始化完成即淡出。
             // 注意这里不能走 beginFinish —— 那条路径由 frame 推进阶段，而 frame 在降级下不会启动
             document.addEventListener('DOMContentLoaded', release);
         }
@@ -503,8 +611,6 @@
 
             var c = center();
             var size = brandFontSize();
-            var brandRadius = size * 1.5;
-            var ringStart = c.maxR * 0.55;
 
             if (state === 'gather' || state === 'settle' || state === 'hold') {
                 var target = (state === 'gather')
@@ -516,14 +622,13 @@
                 updateGather(particles, gNow * GATHER_MS, c);
                 paint(particles);
 
-                var reveal = clamp01((gather - 0.4) / 0.6);
-                var revealEase = 1 - Math.pow(1 - reveal, 3);
-                // 进度已停但字样已成型时，给环带一点呼吸，避免完全静止
+                // 粒子拼出字形后逐渐点亮为实体字：0.82 起淡入，收尾阶段完全实体
+                var lit = (state === 'gather') ? clamp01((gather - 0.82) / 0.18) : 1;
+                // 加载已完成但还在等（进度停滞）时，让实体字轻微呼吸，避免完全静止
                 var breathe = (state === 'gather' && gather >= 0.999)
-                    ? 0.92 + 0.08 * Math.sin(t * 0.0035)
+                    ? 0.9 + 0.1 * Math.sin(t * 0.0035)
                     : 1;
-                drawRing(c, ringStart + (brandRadius - ringStart) * revealEase, 0.55 * revealEase * breathe);
-                drawBrand(c, size, 0.88 + 0.12 * revealEase, revealEase);
+                drawBrand(c, size, 0.94 + 0.06 * lit, lit * breathe);
 
                 if (state === 'settle' && t - stateAt >= SETTLE_MS) {
                     state = 'hold';
@@ -536,12 +641,11 @@
                 return;
             }
 
-            // 爆开 → 淡出
+            // 爆开 → 淡出（粒子从各自字形点向外炸开，实体字放大淡出）
             var be = t - stateAt;
             var bt = clamp01(be / BURST_MS);
             updateBurst(particles, be, c);
             paint(particles);
-            drawRing(c, brandRadius + 220 * bt, 0.5 * (1 - bt));
             drawBrand(c, size, 1 + 0.35 * bt, 1 - bt);
             if (bt >= 1) {
                 state = 'out';
