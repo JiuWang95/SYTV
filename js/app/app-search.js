@@ -852,12 +852,37 @@ async function search() {
     }
 }
 
+// 搜索结果提前退出策略：
+// 到达 CUTOFF_MS 时，若已有 >= MIN_SOURCES 个源返回了结果，就不再等待剩余源。
+// 被放弃的源其 HTTP 请求仍会跑完并写入搜索缓存，下次搜索即可秒回，不会白费。
+const SEARCH_EARLY_EXIT_CUTOFF_MS = 3000;
+const SEARCH_EARLY_EXIT_MIN_SOURCES = 3;
+
 async function performTraditionalSearch(query) {
-    const searchPromises = selectedAPIs.map(apiId => 
+    let doneCount = 0;
+
+    const searchPromises = selectedAPIs.map(apiId => new Promise(resolve => {
+        let settled = false;
+        let cutoffTimer = null;
+
+        const finish = (value) => {
+            if (settled) return;
+            settled = true;
+            if (cutoffTimer) clearTimeout(cutoffTimer);
+            resolve(value);
+        };
+
+        // 到点检查：已有足够多的源返回结果时，放弃继续等待本源
+        cutoffTimer = setTimeout(() => {
+            if (doneCount >= SEARCH_EARLY_EXIT_MIN_SOURCES) finish([]);
+        }, SEARCH_EARLY_EXIT_CUTOFF_MS);
+
         searchByAPIAndKeyWord(apiId, query)
-    );
-    
-    // 等待所有搜索请求完成
+            .then(results => { doneCount++; finish(results); })
+            .catch(() => finish([]));
+    }));
+
+    // 等待所有搜索请求完成（或按上面的策略提前结束）
     const resultsArray = await Promise.all(searchPromises);
     
     let allResults = [];

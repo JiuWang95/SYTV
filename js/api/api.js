@@ -380,6 +380,8 @@ async function handleAggregatedSearch(searchQuery) {
     
     // 创建所有API源的搜索请求
     const searchPromises = availableSources.map(async (source) => {
+        // 记录该源本次搜索的实时耗时，用于在结果卡片上标注快/中/慢
+        const startedAt = Date.now();
         try {
             const apiUrl = `${API_SITES[source].api}${API_CONFIG.search.path}${encodeURIComponent(searchQuery)}`;
             
@@ -409,11 +411,13 @@ async function handleAggregatedSearch(searchQuery) {
                 throw new Error(`${source}源返回的数据格式无效`);
             }
             
-            // 为搜索结果添加源信息
+            // 为搜索结果添加源信息（含该源本次搜索的耗时）
+            const sourceLatency = Date.now() - startedAt;
             const results = data.list.map(item => ({
                 ...item,
                 source_name: API_SITES[source].name,
-                source_code: source
+                source_code: source,
+                source_latency: sourceLatency
             }));
             
             return results;

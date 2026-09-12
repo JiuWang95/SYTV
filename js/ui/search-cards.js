@@ -25,7 +25,19 @@ function _buildSearchCardsHtml(items) {
   return items.map(function(item) {
     var sid = (item.vod_id || "").toString().replace(/[^\w-]/g, "");
     var sn = (item.vod_name || "").toString().replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    var srcInfo = item.source_name ? "<span class='source-label-tag'>" + item.source_name + "</span>" : "";
+    var srcInfo = "";
+    if (item.source_name) {
+      srcInfo += "<span class='source-label-tag'>" + item.source_name + "</span>";
+      // 该源本次搜索的耗时：<1s 快（绿）/ 1-2s 中（黄）/ ≥2s 慢（红）
+      var lat = item.source_latency;
+      if (typeof lat === "number" && lat > 0) {
+        var lvl = lat < 1000 ? "fast" : (lat < 2000 ? "mid" : "slow");
+        var lvlName = lat < 1000 ? "快" : (lat < 2000 ? "中" : "慢");
+        // 秒数向下取整到 0.1s，避免 1999ms 与 2000ms 显示成同一个 "2.0s"
+        var latText = lat < 1000 ? (lat + "ms") : ((Math.floor(lat / 100) / 10).toFixed(1) + "s");
+        srcInfo += "<span class='source-latency-tag latency-" + lvl + "' title='该源本次搜索耗时 " + lat + "ms（" + lvlName + "）'>" + latText + "</span>";
+      }
+    }
     var sc = item.source_code || "";
     var au = item.api_url ? " data-api-url='" + item.api_url.replace(/"/g, "&quot;") + "'" : "";
     var cv = item.vod_pic && item.vod_pic.indexOf("http") === 0;

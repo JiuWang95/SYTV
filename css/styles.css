@@ -1108,6 +1108,28 @@ body {
     color: #a0aec0;
 }
 
+/* 源搜索延迟标注：用字体颜色区分快 / 中 / 慢 */
+.card-hover.search-result-card .card-content-footer .source-latency-tag {
+    margin-left: 0.4rem;
+    align-self: center;
+    font-size: 0.7rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.source-latency-tag.latency-fast {
+    color: #4ade80;
+}
+
+.source-latency-tag.latency-mid {
+    color: #fbbf24;
+}
+
+.source-latency-tag.latency-slow {
+    color: #f87171;
+}
+
 /* 移动端响应式调整 */
 @media screen and (max-width: 640px) {
     .card-hover.search-result-card {

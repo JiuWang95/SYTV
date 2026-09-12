@@ -177,7 +177,10 @@ async function searchByAPIAndKeyWord(apiId, query) {
         if (window.loadBalancer) {
             window.loadBalancer.recordApiResult(apiId, true, responseTime);
         }
-        
+
+        // 把该源本次搜索的整体耗时附加到结果上，供结果卡片标注快/中/慢
+        results.forEach(item => { item.source_latency = responseTime; });
+
         // 写入缓存
         _setCachedResult(apiId, query, results);
         return results;
