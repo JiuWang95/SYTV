@@ -1855,5 +1855,343 @@ details[open] .invite-device-toggle::before {
     }
 }
 
+/* ==================== 主题设置卡片 ==================== */
+
+/* 与邀请码管理卡片同款：桌面端横跨两列，占满整个网格宽度 */
+.theme-full-width {
+    grid-column: 1 / -1;
+}
+
+.theme-disc-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    /* 列间距由列宽自然撑开（圆盘在列内居中），行间距单独给足；
+       容器上限随卡片放宽，避免宽屏下 12 个圆盘全挤在中间、两侧大片留白 */
+    gap: 1.5rem 1rem;
+    max-width: min(100%, 660px);
+    margin: 0 auto;
+}
+
+.theme-disc-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+}
+
+.theme-disc {
+    /* 随视口缩放：窄屏不小于 34px，宽屏放大到 62px —— 与卡片宽度相称 */
+    --disc-size: clamp(34px, 5vw, 62px);
+    width: var(--disc-size);
+    height: var(--disc-size);
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    background: var(--disc-color, #2a2a2a);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.18s var(--ease-out-expo), border-color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* 选中环：用主色圆盘自身的颜色描一圈，不必再引入额外色 */
+.theme-disc::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    transition: border-color 0.18s ease;
+}
+
+.theme-disc:hover {
+    transform: scale(1.08);
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.theme-disc:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.55);
+}
+
+.theme-disc.is-active {
+    border-color: #ffffff;
+}
+
+.theme-disc.is-active::after {
+    border-color: var(--disc-color, #ffffff);
+}
+
+.theme-disc-label {
+    font-size: clamp(9px, 2.4vw, 12px);
+    line-height: 1.2;
+    color: #8599b2;
+    white-space: nowrap;
+    transition: color 0.18s ease;
+}
+
+.theme-disc-item:has(.theme-disc.is-active) .theme-disc-label {
+    color: #e6f2ff;
+}
+
+/* ==================== 主题色 Popover ColorPicker ==================== */
+
+.theme-picker-popover {
+    position: fixed;
+    z-index: 9992;
+    width: 248px;
+    padding: 0.75rem;
+    background: var(--color-surface-overlay);
+    border: 1px solid var(--color-border-default);
+    border-radius: 0.75rem;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(var(--color-primary-rgb), 0.14);
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+    transform-origin: top center;
+    transition: opacity 0.16s ease, transform 0.16s var(--ease-out-expo);
+    pointer-events: none;
+}
+
+.theme-picker-popover.is-open {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+}
+
+/* hidden 属性必须能压过下面那些 display: grid —— 否则预设气泡会露出只属于自定义的色相条与 RGB 输入 */
+.theme-picker-popover [hidden] {
+    display: none;
+}
+
+.theme-picker-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.theme-picker-swatch {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 0.375rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    flex-shrink: 0;
+}
+
+.theme-picker-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.theme-picker-hex {
+    margin-left: auto;
+    font-family: 'MapleMono', ui-monospace, monospace;
+    font-size: 0.625rem;
+    color: #6b7280;
+}
+
+.theme-picker-close {
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: #6b7280;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.theme-picker-close:hover {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* 该色系的梯度色块：快速取一档现成的明度 */
+.theme-picker-ramp {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    margin-bottom: 0.6rem;
+}
+
+.theme-picker-ramp button {
+    height: 14px;
+    padding: 0;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: transform 0.12s ease;
+}
+
+.theme-picker-ramp button:hover {
+    transform: scaleY(1.35);
+}
+
+/* 二维坐标取色板：横轴饱和度、纵轴明度 */
+.theme-picker-plane {
+    position: relative;
+    height: 132px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    cursor: crosshair;
+    overflow: hidden;
+    touch-action: none;
+}
+
+.theme-picker-plane-dot,
+.theme-picker-hue-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    margin: -7px 0 0 -7px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+}
+
+/* 色相条（仅自定义色盘展示） */
+.theme-picker-hue {
+    position: relative;
+    height: 12px;
+    margin-top: 0.6rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    background: linear-gradient(to right,
+        #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%);
+    cursor: pointer;
+    touch-action: none;
+}
+
+.theme-picker-hue-dot {
+    top: 50%;
+}
+
+/* RGB / HEX 快速填写（仅自定义色盘展示） */
+.theme-picker-rgb {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.375rem;
+    margin-top: 0.6rem;
+}
+
+.theme-picker-code {
+    margin-top: 0.375rem;
+}
+
+.theme-picker-rgb label,
+.theme-picker-code label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.625rem;
+    color: #8599b2;
+}
+
+.theme-picker-code label {
+    gap: 0.5rem;
+    letter-spacing: 0.04em;
+}
+
+.theme-picker-rgb input,
+.theme-picker-code input {
+    width: 100%;
+    min-width: 0;
+    padding: 0.25rem 0.375rem;
+    background: #111111;
+    border: 1px solid var(--color-border-default);
+    border-radius: 0.375rem;
+    color: #e2e8f0;
+    font-family: 'MapleMono', ui-monospace, monospace;
+    font-size: 0.6875rem;
+    transition: border-color 0.15s ease;
+}
+
+.theme-picker-rgb input:focus,
+.theme-picker-code input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.theme-picker-code input {
+    flex: 1;
+    text-transform: uppercase;
+}
+
+/* 三格数字输入宽度有限，去掉调节箭头更清爽 */
+.theme-picker-rgb input::-webkit-outer-spin-button,
+.theme-picker-rgb input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.theme-picker-rgb input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.theme-picker-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.theme-picker-actions .dash-btn {
+    padding: 0.4rem 0.75rem;
+}
+
+/* 原地换色的粒子画布：盖在内容之上、气泡与启动占位之下 */
+.theme-burst-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    display: block;
+    pointer-events: none;
+}
+
+/* 窄屏（单列布局）：列间距收紧，避免列宽被 gap 吃掉、标签被挤到换行；
+   同时把主题卡片提到第 2 位（紧跟数据源），其余卡片维持原有顺序 */
+@media (max-width: 767px) {
+    .theme-disc-grid {
+        gap: 1rem 0.5rem;
+    }
+
+    /* 三档 order：数据源 1 < 主题 2 < 其余 3，组内仍按 DOM 顺序排列 */
+    .settings-dashboard-grid > * {
+        order: 3;
+    }
+
+    .settings-dashboard-grid > :first-child {
+        order: 1;
+    }
+
+    .settings-dashboard-grid > .theme-full-width {
+        order: 2;
+    }
+}
+
+@media (max-width: 399px) {
+    .theme-disc-grid {
+        gap: 0.625rem 0.25rem;
+    }
+
+    .theme-disc {
+        --disc-size: clamp(30px, 9vw, 36px);
+    }
+
+    .theme-picker-popover {
+        width: 232px;
+    }
+}
+
 
 

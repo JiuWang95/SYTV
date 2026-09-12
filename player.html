@@ -20,15 +20,68 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-<!-- 私密模式主题：按 localStorage 的 hiddenContentMode 在首帧之前打标记，
-     css/variables.css 的 html[data-hidden-mode] 据此把主题色切成鸿蒙便签黄（正常模式仍是霓虹粉） -->
+<!-- 主题：私密模式标记 + 已保存的主题色，均在首帧之前落到 <html> 上
+     · 私密模式：css/variables.css 的 html[data-hidden-mode] 据此把默认色切成铜色
+     · 自定义主题色：把派生色写进行内样式（优先级高于上面的样式表规则），
+       避免先闪默认色再切到目标色；算法与 js/ui/theme-system.js 一致，改动需同步 -->
 <script>
     (function () {
+        var d = document.documentElement;
         try {
             if (localStorage.getItem('hiddenContentMode') === 'true') {
-                document.documentElement.setAttribute('data-hidden-mode', '1');
+                d.setAttribute('data-hidden-mode', '1');
             }
         } catch (e) { /* localStorage 不可用时按正常模式渲染 */ }
+
+        try {
+            // 按数据域取已保存的主题（两个模式各存一套；没存过就保持 css 默认色）
+            var raw = localStorage.getItem(d.hasAttribute('data-hidden-mode') ? 'leletv_theme_hidden' : 'leletv_theme_normal');
+            if (!raw) return;
+            var m = /^#?([0-9a-f]{6})$/i.exec(String((JSON.parse(raw) || {}).hex || ''));
+            if (!m) return;
+            var hx = m[1];
+            var R = parseInt(hx.slice(0, 2), 16) / 255;
+            var G = parseInt(hx.slice(2, 4), 16) / 255;
+            var B = parseInt(hx.slice(4, 6), 16) / 255;
+            var mx = Math.max(R, G, B), mn = Math.min(R, G, B), L = (mx + mn) / 2, D = mx - mn;
+            var H = 0, S = 0;
+            if (D > 1e-6) {
+                S = L > 0.5 ? D / (2 - mx - mn) : D / (mx + mn);
+                H = mx === R ? 60 * (((G - B) / D) % 6) : (mx === G ? 60 * ((B - R) / D + 2) : 60 * ((R - G) / D + 4));
+                if (H < 0) H += 360;
+            }
+            S *= 100;
+            var STOPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+            var LS = [96, 93, 87, 80, 70, 60, 51, 43, 35, 26];
+            // 无彩色（灰色系）另铺满黑→白，与 js/ui/theme-system.js 的 RAMP_L_MONO 一致
+            if (S < 5) LS = [100, 89, 78, 67, 56, 44, 33, 22, 11, 0];
+            // 只调明度、保留色相与饱和度：无彩色主色自然得到灰阶
+            function shade(l) {
+                var c = (1 - Math.abs(2 * l / 100 - 1)) * (S / 100);
+                var x = c * (1 - Math.abs(((H / 60) % 2) - 1));
+                var mm = l / 100 - c / 2, r = 0, g = 0, b = 0;
+                if (H < 60) { r = c; g = x; } else if (H < 120) { r = x; g = c; }
+                else if (H < 180) { g = c; b = x; } else if (H < 240) { g = x; b = c; }
+                else if (H < 300) { r = x; b = c; } else { r = c; b = x; }
+                function f(v) { return ('0' + Math.round((v + mm) * 255).toString(16)).slice(-2); }
+                return {
+                    hex: '#' + f(r) + f(g) + f(b),
+                    rgb: [Math.round((r + mm) * 255), Math.round((g + mm) * 255), Math.round((b + mm) * 255)]
+                };
+            }
+            var st = d.style;
+            st.setProperty('--color-primary', '#' + hx);
+            st.setProperty('--color-primary-rgb', Math.round(R * 255) + ', ' + Math.round(G * 255) + ', ' + Math.round(B * 255));
+            var c3 = shade(80), c4 = shade(70), c6 = shade(51);
+            st.setProperty('--color-primary-300', c3.hex);
+            st.setProperty('--color-primary-400', c4.hex);
+            st.setProperty('--color-primary-400-rgb', c4.rgb.join(', '));
+            st.setProperty('--color-primary-600', c6.hex);
+            st.setProperty('--color-primary-600-rgb', c6.rgb.join(', '));
+            for (var i = 0; i < STOPS.length; i++) {
+                st.setProperty('--tw-pink-' + STOPS[i] + '-rgb', shade(LS[i]).rgb.join(' '));
+            }
+        } catch (e) { /* 读取失败时回落到 css 默认主题色 */ }
     })();
 </script>
 </head>
