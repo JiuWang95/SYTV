@@ -9,8 +9,8 @@ function createHlsConfig() {
         lowLatencyMode: true,                   // 低延迟模式加速起播
         startFragPrefetch: true,                // manifest 加载时预取首个分片（v1.4.0+）
         backBufferLength: 30,                   // 后向缓冲30秒，释放内存
-        maxBufferLength: 12,                    // 减小前向缓冲，减少内存占用
-        maxMaxBufferLength: 25,
+        maxBufferLength: 30,                    // 前向缓冲30秒（约7~8个分片），抗跨境链路抖动
+        maxMaxBufferLength: 300,
         maxBufferSize: 20 * 1000 * 1000,
         maxBufferHole: 0.3,                     // 减小缓冲空洞容忍度
         fragLoadingMaxRetry: 3,                 // 减少重试次数
@@ -71,14 +71,9 @@ function setupHlsCustomType(video, url, hlsConfig) {
     hls.loadSource(url);
     hls.attachMedia(video);
 
-    let sourceElement = video.querySelector('source');
-    if (sourceElement) {
-        sourceElement.src = url;
-    } else {
-        sourceElement = document.createElement('source');
-        sourceElement.src = url;
-        video.appendChild(sourceElement);
-    }
+    // 注意：不要往 <video> 注入 <source>。
+    // hls.js 已通过 attachMedia 设置 video.src = blob:（MSE），
+    // 而 Chrome 不支持原生 HLS，多余的 <source> 只会引发一次注定失败的 m3u8 请求。
     video.disableRemotePlayback = false;
 
     hls.on(Hls.Events.MANIFEST_PARSED, function () {
