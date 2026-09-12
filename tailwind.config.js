@@ -6,7 +6,25 @@ export default {
     './js/**/*.js',
   ],
   theme: {
-    extend: {},
+    extend: {
+      // pink 调色板改为引用 CSS 变量：私密模式下由 variables.css 的 html[data-hidden-mode]
+      // 覆盖为鸿蒙便签黄，于是 HTML 里所有 bg-pink-* / text-pink-* / focus:border-pink-* 等
+      // 工具类都会自动跟随主题切换，无需改动各处的类名
+      colors: {
+        pink: {
+          50: 'rgb(var(--tw-pink-50-rgb) / <alpha-value>)',
+          100: 'rgb(var(--tw-pink-100-rgb) / <alpha-value>)',
+          200: 'rgb(var(--tw-pink-200-rgb) / <alpha-value>)',
+          300: 'rgb(var(--tw-pink-300-rgb) / <alpha-value>)',
+          400: 'rgb(var(--tw-pink-400-rgb) / <alpha-value>)',
+          500: 'rgb(var(--tw-pink-500-rgb) / <alpha-value>)',
+          600: 'rgb(var(--tw-pink-600-rgb) / <alpha-value>)',
+          700: 'rgb(var(--tw-pink-700-rgb) / <alpha-value>)',
+          800: 'rgb(var(--tw-pink-800-rgb) / <alpha-value>)',
+          900: 'rgb(var(--tw-pink-900-rgb) / <alpha-value>)',
+        },
+      },
+    },
   },
   plugins: [],
 }

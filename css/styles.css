@@ -69,13 +69,13 @@ button, .card-hover {
 }
 
 .gradient-text {
-    color: #ec4899;
+    color: var(--color-primary);
 }
 
 /* 渐变按钮悬停效果 */
 .gradient-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
+    box-shadow: 0 8px 25px rgba(var(--color-primary-rgb), 0.4);
 }
 
 ::-webkit-scrollbar {
@@ -106,7 +106,7 @@ button, .card-hover {
 /* 统一按钮样式组件 */
 /* 通用渐变按钮类 */
 .gradient-btn {
-    background: #ec4899;
+    background: var(--color-primary);
     border: none;
     color: white;
     padding: 0.75rem 1.5rem;
@@ -180,12 +180,12 @@ button, .card-hover {
 }
 
 .source-filter-tab:hover {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
     color: white;
 }
 
 .source-filter-tab.active {
-    background: #ec4899;
+    background: var(--color-primary);
     border-color: transparent;
     color: white;
 }
@@ -443,17 +443,17 @@ body {
 }
 
 #episodesGrid button {
-    background: rgba(236, 72, 153, 0.08);
-    border: 1px solid rgba(236, 72, 153, 0.2);
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.2);
     transition: all 0.2s ease;
 }
 
 #episodesGrid button:hover {
-    background: rgba(236, 72, 153, 0.15);
+    background: rgba(var(--color-primary-rgb), 0.15);
     border-color: var(--color-accent);
-    -webkit-box-shadow: 0 0 8px rgba(236, 72, 153, 0.3);
-    -moz-box-shadow: 0 0 8px rgba(236, 72, 153, 0.3);
-    box-shadow: 0 0 8px rgba(236, 72, 153, 0.3);
+    -webkit-box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.3);
+    -moz-box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.3);
+    box-shadow: 0 0 8px rgba(var(--color-primary-rgb), 0.3);
 }
 
 #hiddenFilterToggle.dash-switch-input:checked ~ .dash-switch-track {
@@ -464,14 +464,14 @@ body {
     -webkit-transform: translateX(1.25rem);
     -moz-transform: translateX(1.25rem);
     transform: translateX(1.25rem);
-    box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.3);
 }
 
 #hiddenFilterToggle.dash-switch-input:focus ~ .dash-switch-track,
 #hiddenFilterToggle.dash-switch-input:hover ~ .dash-switch-track {
-    -webkit-box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.3);
-    -moz-box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.3);
-    box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.3);
+    -webkit-box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.3);
+    -moz-box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.3);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.3);
 }
 
 #adFilterToggle.dash-switch-input:checked ~ .dash-switch-track {
@@ -480,12 +480,12 @@ body {
 
 #adFilterToggle.dash-switch-input:checked ~ .dash-switch-dot {
     transform: translateX(1.25rem);
-    box-shadow: 0 2px 4px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 2px 4px rgba(var(--color-primary-rgb), 0.3);
 }
 
 #adFilterToggle.dash-switch-input:focus ~ .dash-switch-track,
 #adFilterToggle.dash-switch-input:hover ~ .dash-switch-track {
-    box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.3);
+    box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb), 0.3);
 }
 
 .dash-switch-dot {
@@ -730,7 +730,7 @@ body {
 .history-item:hover {
     transform: translateY(-2px);
     border-color: #555;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(236, 72, 153, 0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(var(--color-primary-rgb), 0.08);
 }
 
 /* 封面区域 - 左侧1/4宽度 */
@@ -849,7 +849,7 @@ body {
 
 .progress-filled {
     height: 100%;
-    background: #ec4899;
+    background: var(--color-primary);
     border-radius: 2px;
     width: 100%;
     transform-origin: left;
@@ -939,9 +939,9 @@ body {
     height: 100%;
     background: linear-gradient(90deg,
         transparent 0%,
-        rgba(236, 72, 153, 0.08) 40%,
-        rgba(236, 72, 153, 0.15) 50%,
-        rgba(236, 72, 153, 0.08) 60%,
+        rgba(var(--color-primary-rgb), 0.08) 40%,
+        rgba(var(--color-primary-rgb), 0.15) 50%,
+        rgba(var(--color-primary-rgb), 0.08) 60%,
         transparent 100%);
     transform: translateX(-166.667%);
     z-index: 1;
@@ -964,8 +964,8 @@ body {
 .card-ripple {
     position: absolute;
     border-radius: 50%;
-    border: 2px solid rgba(236, 72, 153, 0.65);
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.28) 0%, rgba(236, 72, 153, 0) 62%);
+    border: 2px solid rgba(var(--color-primary-rgb), 0.65);
+    background: radial-gradient(circle, rgba(var(--color-primary-rgb), 0.28) 0%, rgba(var(--color-primary-rgb), 0) 62%);
     transform: scale(0);
     opacity: 0;
     z-index: 5;
@@ -1060,15 +1060,15 @@ body {
     font-size: 0.75rem;
     padding: 0.125rem 0.5rem;
     border-radius: 0.25rem;
-    background-color: rgba(236, 72, 153, 0.15);
-    color: #f472b6;
+    background-color: rgba(var(--color-primary-rgb), 0.15);
+    color: var(--color-primary-400);
 }
 
 /* 集数/更新状态 */
 .card-hover.search-result-card .card-content-remarks {
     flex-shrink: 0;
     font-size: 0.8rem;
-    color: #f472b6;
+    color: var(--color-primary-400);
     margin-bottom: 0.25rem;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -1461,12 +1461,12 @@ img.loading-fade.loaded {
 
 @keyframes emailHighlight {
     0% {
-        background-color: rgba(236, 72, 153, 0.15);
+        background-color: rgba(var(--color-primary-rgb), 0.15);
         border-radius: 4px;
         padding: 0 2px;
     }
     50% {
-        background-color: rgba(236, 72, 153, 0.3);
+        background-color: rgba(var(--color-primary-rgb), 0.3);
         transform: scale(1.05);
     }
     100% {
@@ -1655,7 +1655,7 @@ img.loading-fade.loaded {
 }
 
 .nav-btn.active {
-    color: #ec4899;
+    color: var(--color-primary);
     background: transparent;
     position: relative;
 }
@@ -1668,7 +1668,7 @@ img.loading-fade.loaded {
     transform: translateX(-50%);
     width: 1.2rem;
     height: 2px;
-    background: #ec4899;
+    background: var(--color-primary);
     border-radius: 1px;
     animation: navActiveIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -2116,7 +2116,7 @@ body > header {
     }
 
     .mobile-search-input-wrapper:focus-within {
-        border-color: #ec4899;
+        border-color: var(--color-primary);
     }
 
     .mobile-search-back-icon {
@@ -2146,7 +2146,7 @@ body > header {
 
     .mobile-search-cancel {
         flex-shrink: 0;
-        color: #ec4899;
+        color: var(--color-primary);
         font-size: 15px;
         font-weight: 500;
         background: none;
@@ -2241,7 +2241,7 @@ body > header {
   opacity: 1;
 }
 .card-share-btn:hover {
-  background: #ec4899;
+  background: var(--color-primary);
 }
 
 /* ====== 邀请码登录界面 ====== */

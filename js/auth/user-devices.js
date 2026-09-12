@@ -222,7 +222,7 @@ const USER_DEVICES_PANEL = {
         input.className = 'invite-name-input';
         input.value = currentName;
         input.maxLength = 30;
-        input.style.cssText = 'background:#1a1a2e;border:1px solid #ec4899;color:#e2e8f0;border-radius:0.25rem;padding:0.1rem 0.3rem;font-size:0.82rem;width:100%;outline:none;';
+        input.style.cssText = 'background:#1a1a2e;border:1px solid ' + ((typeof themeColor === 'function') ? themeColor() : '#ec4899') + ';color:#e2e8f0;border-radius:0.25rem;padding:0.1rem 0.3rem;font-size:0.82rem;width:100%;outline:none;';
 
         this.innerHTML = '';
         this.appendChild(input);

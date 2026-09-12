@@ -307,3 +307,35 @@ const LOAD_BALANCER_CONFIG = {
     loadPenaltyFactor: 10,          // 负载惩罚因子
     recentSuccessBonus: 1.2         // 最近成功加成
 };
+
+// ===== 主题色：正常模式霓虹粉，私密模式鸿蒙便签黄 =====
+// 色值与 css/variables.css 的 html[data-hidden-mode] 覆盖块保持一致（改色值时两处同步）。
+// 供 CSS 变量无能为力的场景使用：canvas 绘制、第三方组件（ArtPlayer）主题、行内样式等
+const THEME_COLOR_NORMAL = '#ec4899';
+const THEME_COLOR_HIDDEN = '#B87333';
+const THEME_RGB_NORMAL = [236, 72, 153];
+const THEME_RGB_HIDDEN = [184, 115, 51];
+
+/** 是否处于私密（隐藏内容）模式 —— 该属性由页面的 head 内联脚本在首帧前设置 */
+function isHiddenThemeMode() {
+    try { return document.documentElement.hasAttribute('data-hidden-mode'); } catch (e) { return false; }
+}
+
+/** 当前主题主色：优先取 CSS 变量的真实值，取不到时按模式回退到常量 */
+function themeColor() {
+    try {
+        var v = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+        if (v) return v;
+    } catch (e) { /* 忽略 */ }
+    return isHiddenThemeMode() ? THEME_COLOR_HIDDEN : THEME_COLOR_NORMAL;
+}
+
+/** 当前主题主色的 RGB 分量（供 canvas 粒子/渐变使用） */
+function themeRgb() {
+    try {
+        var v = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgb').trim();
+        var parts = v.split(',').map(function (n) { return parseInt(n, 10); });
+        if (parts.length === 3 && parts[0] >= 0 && parts[1] >= 0 && parts[2] >= 0) return parts;
+    } catch (e) { /* 忽略 */ }
+    return (isHiddenThemeMode() ? THEME_RGB_HIDDEN : THEME_RGB_NORMAL).slice();
+}

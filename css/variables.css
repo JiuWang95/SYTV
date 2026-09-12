@@ -15,20 +15,43 @@
     --color-border-subtle:    rgba(255,255,255,0.06);
     --color-border-default:   rgba(255,255,255,0.10);
     --color-border-hover:     rgba(255,255,255,0.18);
-    --color-border-active:    #ec4899;
+    --color-border-active:    var(--color-primary);
 
+    /* ===== 主题色（双模式） =====
+       正常模式：霓虹粉；私密模式（html[data-hidden-mode]，文件末尾覆盖）：铜色 #B87333。
+       下面这三个基础色是唯一需要按模式覆盖的值，其余派生色全部引用它们；
+       -rgb 为逗号分隔分量，供 rgba(var(--xxx-rgb), a) 使用 */
     --color-primary:          #ec4899;
-    --color-accent:           #ec4899;
-    --color-primary-dim:      rgba(236,72,153,0.15);
+    --color-primary-rgb:      236, 72, 153;
+    --color-primary-300:      #f9a8d4;
+    --color-primary-400:      #f472b6;
+    --color-primary-400-rgb:  244, 114, 182;
+    --color-primary-600:      #db2777;
+    --color-primary-600-rgb:  219, 39, 119;
 
-    /* 扩展粉色体系 */
-    --pink-50:  rgba(236,72,153,0.05);
-    --pink-100: rgba(236,72,153,0.10);
-    --pink-200: rgba(236,72,153,0.20);
-    --pink-400: #f472b6;
-    --pink-500: #ec4899;
-    --pink-600: #db2777;
-    --pink-glow: 0 0 20px rgba(236,72,153,0.3);
+    --color-accent:           var(--color-primary);
+    --color-primary-dim:      rgba(var(--color-primary-rgb), 0.15);
+
+    /* 扩展色彩体系（旧命名保留，全部指向主题色） */
+    --pink-50:  rgba(var(--color-primary-rgb), 0.05);
+    --pink-100: rgba(var(--color-primary-rgb), 0.10);
+    --pink-200: rgba(var(--color-primary-rgb), 0.20);
+    --pink-400: var(--color-primary-400);
+    --pink-500: var(--color-primary);
+    --pink-600: var(--color-primary-600);
+    --pink-glow: 0 0 20px rgba(var(--color-primary-rgb), 0.3);
+
+    /* Tailwind 调色板分量（空格分隔，tailwind.config.js 的 pink 系列引用它们） */
+    --tw-pink-50-rgb: 253 242 248;
+    --tw-pink-100-rgb: 252 231 243;
+    --tw-pink-200-rgb: 251 207 232;
+    --tw-pink-300-rgb: 249 168 212;
+    --tw-pink-400-rgb: 244 114 182;
+    --tw-pink-500-rgb: 236 72 153;
+    --tw-pink-600-rgb: 219 39 119;
+    --tw-pink-700-rgb: 190 24 93;
+    --tw-pink-800-rgb: 157 23 77;
+    --tw-pink-900-rgb: 131 24 67;
 
     --color-text-primary:     #e6f2ff;
     --color-text-secondary:   #8599b2;
@@ -75,4 +98,30 @@
     --card-min-height: 120px;
     --card-img-width: 120px;
     --card-img-height: 168px;
+}
+
+/* ===== 私密模式主题：铜色 #B87333 =====
+   由 index.html / player.html 的 head 内联脚本按 localStorage 的 hiddenContentMode 打上此属性，
+   在首帧之前生效，因此不会出现"先粉后黄"的闪烁。
+   只覆盖基础色，--pink-* 与 rgba(var(--color-primary-rgb)…) 等派生色会自动跟随 */
+html[data-hidden-mode] {
+    --color-primary:          #B87333;
+    --color-primary-rgb:      184, 115, 51;
+    --color-primary-300:      #DFA96F;
+    --color-primary-400:      #D08A45;
+    --color-primary-400-rgb:  208, 138, 69;
+    --color-primary-600:      #96602A;
+    --color-primary-600-rgb:  150, 96, 42;
+
+    /* Tailwind pink 调色板同样跟着走（保持原有的明度层次） */
+    --tw-pink-50-rgb: 251 244 236;
+    --tw-pink-100-rgb: 245 230 213;
+    --tw-pink-200-rgb: 235 203 170;
+    --tw-pink-300-rgb: 223 169 111;
+    --tw-pink-400-rgb: 208 138 69;
+    --tw-pink-500-rgb: 184 115 51;
+    --tw-pink-600-rgb: 150 96 42;
+    --tw-pink-700-rgb: 120 77 34;
+    --tw-pink-800-rgb: 90 58 26;
+    --tw-pink-900-rgb: 60 39 17;
 }

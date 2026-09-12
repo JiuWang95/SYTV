@@ -179,9 +179,9 @@ body, html {
 }
 
 .episode-active {
-    background-color: rgba(236,72,153,0.2) !important;
-    border-color: rgba(236,72,153,0.5) !important;
-    box-shadow: 0 0 12px rgba(236,72,153,0.25) !important;
+    background-color: rgba(var(--color-primary-rgb),0.2) !important;
+    border-color: rgba(var(--color-primary-rgb),0.5) !important;
+    box-shadow: 0 0 12px rgba(var(--color-primary-rgb),0.25) !important;
 }
 
 .episode-grid {
@@ -269,7 +269,7 @@ body, html {
 }
 
 input:checked + .slider {
-    background-color: #ec4899;
+    background-color: var(--color-primary);
 }
 
 input:checked + .slider:before {
@@ -696,7 +696,7 @@ body.native-fs-active .control-buttons-container {
     align-items: center;
     background: none;
     border: none;
-    color: #FF69B4;
+    color: var(--color-primary-400);
     font-weight: bold;
     font-size: 1rem;
     cursor: pointer;
@@ -720,7 +720,7 @@ body.native-fs-active .control-buttons-container {
     width: 20px;
     height: 20px;
     margin-right: 0;
-    color: #FF69B4;
+    color: var(--color-primary-400);
     vertical-align: middle;
     -webkit-transition: -webkit-transform 0.3s;
     -moz-transition: -moz-transform 0.3s;
@@ -1186,8 +1186,8 @@ main.container {
 }
 
 .resource-card.current {
-    border: 1px solid #ec4899;
-    box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.3);
+    border: 1px solid var(--color-primary);
+    box-shadow: 0 0 0 1px rgba(var(--color-primary-rgb), 0.3);
 }
 
 /* 控制栏收起状态：隐藏 ArtPlayer 底部控件 + 进度条 + 返回按钮 */

@@ -165,7 +165,7 @@ function createArtPlayerInstance(videoUrl, hlsConfig) {
         autoPlayback: false,
         airplay: true,
         hotkey: false,
-        theme: '#ec4899',
+        theme: (typeof themeColor === 'function') ? themeColor() : '#ec4899',
         lang: navigator.language.toLowerCase(),
         moreVideoAttr: {
             crossOrigin: 'anonymous',

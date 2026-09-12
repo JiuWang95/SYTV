@@ -45,7 +45,7 @@
 }
 
 .tmdb-type-btn.active {
-    background: #ec4899;
+    background: var(--color-primary);
     color: white;
 }
 
@@ -72,7 +72,7 @@
     flex-grow: 0;
 }
 .tmdb-filter-collapse-btn:hover {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
     color: #fff;
 }
 .tmdb-filter-collapse-btn:active {
@@ -145,12 +145,12 @@
 }
 
 .tmdb-genre-btn:hover {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
     color: white;
 }
 
 .tmdb-genre-btn.active {
-    background: #ec4899;
+    background: var(--color-primary);
     border-color: transparent;
     color: white;
 }
@@ -200,9 +200,9 @@
 }
 
 .tmdb-card-inner:hover {
-    border-color: rgba(236,72,153,0.3);
+    border-color: rgba(var(--color-primary-rgb),0.3);
     transform: translateY(-6px);
-    box-shadow: 0 12px 40px rgba(236,72,153,0.15);
+    box-shadow: 0 12px 40px rgba(var(--color-primary-rgb),0.15);
 }
 
 .tmdb-card-poster {
@@ -327,13 +327,13 @@
 }
 
 .tmdb-page-btn:hover:not(.disabled):not(.active) {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
     color: white;
     background: #252525;
 }
 
 .tmdb-page-btn.active {
-    background: #ec4899;
+    background: var(--color-primary);
     border-color: transparent;
     color: white;
 }
@@ -440,13 +440,13 @@
     top: 0.5rem;
     right: 0.5rem;
     background: rgba(0, 0, 0, 0.7);
-    color: #f472b6;
+    color: var(--color-primary-400);
     font-size: 0.625rem;
     font-weight: 500;
     padding: 0.15rem 0.4rem;
     border-radius: 0.25rem;
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(236, 72, 153, 0.25);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.25);
 }
 
 /* 卡片元信息行 */
@@ -537,7 +537,7 @@
     width: 2rem;
     height: 2rem;
     border-radius: 0.625rem;
-    background: rgba(236, 72, 153, 0.1);
+    background: rgba(var(--color-primary-rgb), 0.1);
     color: var(--color-primary);
     flex-shrink: 0;
 }
@@ -579,7 +579,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #ec4899;
+    background: var(--color-primary);
     color: white;
     border: none;
     border-radius: 9999px;
@@ -610,11 +610,11 @@
 }
 
 .dash-btn-green {
-    background: #ec4899;
+    background: var(--color-primary);
 }
 
 .dash-btn-green:hover {
-    background: #db2777;
+    background: var(--color-primary-600);
 }
 
 .dash-btn-gray {
@@ -683,13 +683,13 @@
 }
 
 .dash-input:focus {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
 }
 
 .dash-checkbox {
     width: 0.875rem;
     height: 0.875rem;
-    accent-color: #ec4899;
+    accent-color: var(--color-primary);
 }
 
 .dash-switch-body {
@@ -776,7 +776,7 @@
 }
 
 .dash-switch-input:checked ~ .dash-switch-track {
-    background: #ec4899;
+    background: var(--color-primary);
 }
 
 .dash-switch-input:checked ~ .dash-switch-dot {
@@ -881,13 +881,13 @@
 
 .year-toggle-btn {
   flex-shrink: 0;
-  color: #ec4899 !important;
-  border-color: rgba(236, 72, 153, 0.3) !important;
+  color: var(--color-primary) !important;
+  border-color: rgba(var(--color-primary-rgb), 0.3) !important;
 }
 
 .year-toggle-btn:hover {
-  border-color: #ec4899 !important;
-  background: rgba(236, 72, 153, 0.1) !important;
+  border-color: var(--color-primary) !important;
+  background: rgba(var(--color-primary-rgb), 0.1) !important;
 }
 
 /* 类型标签折叠样式 */
@@ -902,13 +902,13 @@
 
 .genre-toggle-btn {
   flex-shrink: 0;
-  color: #ec4899 !important;
-  border-color: rgba(236, 72, 153, 0.3) !important;
+  color: var(--color-primary) !important;
+  border-color: rgba(var(--color-primary-rgb), 0.3) !important;
 }
 
 .genre-toggle-btn:hover {
-  border-color: #ec4899 !important;
-  background: rgba(236, 72, 153, 0.1) !important;
+  border-color: var(--color-primary) !important;
+  background: rgba(var(--color-primary-rgb), 0.1) !important;
 }
 
 /* 超宽屏幕搜索框更宽 - 占屏幕一半宽度，居中 */
@@ -1083,7 +1083,7 @@
     flex: 1;
 }
 .invite-code-text {
-    color: #f472b6;
+    color: var(--color-primary-400);
     font-family: 'Courier New', monospace;
     font-size: 0.85rem;
     font-weight: 600;
@@ -1092,10 +1092,10 @@
     transition: color 0.15s;
 }
 .invite-code-text:hover {
-    color: #ec4899;
+    color: var(--color-primary);
 }
 .invite-remark-text {
-    color: #f472b6;
+    color: var(--color-primary-400);
     font-size: 0.8rem;
     opacity: 0.75;
 }
@@ -1141,9 +1141,9 @@
     white-space: nowrap;
 }
 .invite-action-btn:hover {
-    border-color: #ec4899;
-    color: #ec4899;
-    background: rgba(236,72,153,0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb),0.1);
 }
 .invite-action-btn-danger:hover {
     border-color: #ef4444;
@@ -1172,12 +1172,12 @@
     transition: all 0.2s;
 }
 .header-btn:hover {
-    border-color: #ec4899;
-    color: #ec4899;
-    background: rgba(236,72,153,0.1);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb),0.1);
 }
 @keyframes header-btn-flash {
-    0% { border-color: #ec4899; color: #ec4899; background: rgba(236,72,153,0.2); }
+    0% { border-color: var(--color-primary); color: var(--color-primary); background: rgba(var(--color-primary-rgb),0.2); }
     100% { border-color: #333; color: #9ca3af; background: none; }
 }
 .header-btn:focus {
@@ -1188,9 +1188,9 @@
     pointer-events: none;
 }
 .gen-btn {
-    background: rgba(236,72,153,0.15);
-    border: 1px solid rgba(236,72,153,0.3);
-    color: #ec4899;
+    background: rgba(var(--color-primary-rgb),0.15);
+    border: 1px solid rgba(var(--color-primary-rgb),0.3);
+    color: var(--color-primary);
     padding: 0.25rem 0.55rem;
     border-radius: 0.35rem;
     cursor: pointer;
@@ -1203,8 +1203,8 @@
     white-space: nowrap;
 }
 .gen-btn:hover {
-    background: rgba(236,72,153,0.25);
-    border-color: #ec4899;
+    background: rgba(var(--color-primary-rgb),0.25);
+    border-color: var(--color-primary);
 }
 
 /* Device list in card */
@@ -1258,11 +1258,11 @@ details[open] .invite-device-toggle::before {
     transition: border-color 0.2s;
 }
 .invite-name-editable:hover {
-    border-bottom-color: #ec4899;
+    border-bottom-color: var(--color-primary);
 }
 .invite-rename-icon {
     font-size: 0.65rem;
-    color: #ec4899;
+    color: var(--color-primary);
     opacity: 0.6;
     cursor: pointer;
     transition: opacity 0.2s;
@@ -1272,7 +1272,7 @@ details[open] .invite-device-toggle::before {
 }
 .invite-name-input {
     background: #1a1a2e;
-    border: 1px solid #ec4899;
+    border: 1px solid var(--color-primary);
     color: #e2e8f0;
     border-radius: 0.25rem;
     padding: 0.1rem 0.3rem;
@@ -1322,7 +1322,7 @@ details[open] .invite-device-toggle::before {
     box-sizing: border-box;
 }
 .gen-modal-input:focus {
-    border-color: #ec4899;
+    border-color: var(--color-primary);
 }
 .gen-modal-actions {
     display: flex;
@@ -1346,12 +1346,12 @@ details[open] .invite-device-toggle::before {
     color: #fff;
 }
 .gen-modal-btn-primary {
-    background: #ec4899;
-    border-color: #ec4899;
+    background: var(--color-primary);
+    border-color: var(--color-primary);
     color: #fff;
 }
 .gen-modal-btn-primary:hover {
-    background: #db2777;
+    background: var(--color-primary-600);
 }
 
 /* Responsive */
@@ -1426,8 +1426,8 @@ details[open] .invite-device-toggle::before {
     transition: all 0.2s;
 }
 .readme-back-btn:hover {
-    color: #ec4899;
-    background: rgba(236, 72, 153, 0.1);
+    color: var(--color-primary);
+    background: rgba(var(--color-primary-rgb), 0.1);
 }
 
 .readme-title {
@@ -1780,7 +1780,7 @@ details[open] .invite-device-toggle::before {
     transition: background 0.15s ease;
 }
 .movies-empty-btn:hover {
-    background: #db2777;
+    background: var(--color-primary-600);
 }
 
 /* 分类兜底提示 */
@@ -1788,8 +1788,8 @@ details[open] .invite-device-toggle::before {
     grid-column: 1 / -1;
     font-size: 0.8rem;
     color: var(--pink-400);
-    background: rgba(236, 72, 153, 0.08);
-    border: 1px solid rgba(236, 72, 153, 0.2);
+    background: rgba(var(--color-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--color-primary-rgb), 0.2);
     border-radius: 0.5rem;
     padding: 0.5rem 0.875rem;
     margin-bottom: 0.5rem;

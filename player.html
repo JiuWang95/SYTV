@@ -19,6 +19,18 @@
     <meta http-equiv="Cache-Control" content="no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+
+<!-- 私密模式主题：按 localStorage 的 hiddenContentMode 在首帧之前打标记，
+     css/variables.css 的 html[data-hidden-mode] 据此把主题色切成鸿蒙便签黄（正常模式仍是霓虹粉） -->
+<script>
+    (function () {
+        try {
+            if (localStorage.getItem('hiddenContentMode') === 'true') {
+                document.documentElement.setAttribute('data-hidden-mode', '1');
+            }
+        } catch (e) { /* localStorage 不可用时按正常模式渲染 */ }
+    })();
+</script>
 </head>
 <body>
     <!-- Aurora 极光背景 -->
@@ -187,8 +199,8 @@
     
     <script src="libs/hls.min.js?v=v3.4.0" defer crossorigin="anonymous"></script>
     <script src="libs/artplayer.min.js?v=v3.4.0" defer crossorigin="anonymous"></script>
-    <script src="dist/leletv-core.hvev6v.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-player.cw9deb.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-core.ujnmva.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-player.wt1qpu.js?v=v3.4.0" defer></script>
 
     <script>
         // 创建全局环境变量对象
@@ -227,7 +239,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             var auroraInstances = initAurora({
                 selector: '#auroraContainer',
-                colorStops: ['#3A29FF', '#ec4899', '#FFD700'],
+                colorStops: ['#3A29FF', (typeof themeColor === 'function' ? themeColor() : '#ec4899'), '#FFD700'],
                 amplitude: 0.5,
                 blend: 0.8,
                 speed: 0.5

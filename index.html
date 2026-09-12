@@ -71,22 +71,22 @@
     <!-- README 弹窗 Markdown 样式 -->
     <style>
         .markdown-body { color: #d1d5db; line-height: 1.7; font-size: 14px; word-wrap: break-word; }
-        .markdown-body h1 { color: #ec4899; font-size: 1.5em; margin: 1em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid #333; }
-        .markdown-body h2 { color: #f472b6; font-size: 1.25em; margin: 1em 0 0.4em; }
-        .markdown-body h3 { color: #f9a8d4; font-size: 1.1em; margin: 0.8em 0 0.3em; }
-        .markdown-body h4 { color: #fbcfe8; font-size: 1em; margin: 0.6em 0 0.3em; }
+        .markdown-body h1 { color: var(--color-primary); font-size: 1.5em; margin: 1em 0 0.5em; padding-bottom: 0.3em; border-bottom: 1px solid #333; }
+        .markdown-body h2 { color: var(--color-primary-400); font-size: 1.25em; margin: 1em 0 0.4em; }
+        .markdown-body h3 { color: var(--color-primary-300); font-size: 1.1em; margin: 0.8em 0 0.3em; }
+        .markdown-body h4 { color: var(--color-primary-300); font-size: 1em; margin: 0.6em 0 0.3em; }
         .markdown-body p { margin: 0.5em 0; }
         .markdown-body a { color: #60a5fa; text-decoration: underline; }
         .markdown-body a:hover { color: #93c5fd; }
         .markdown-body ul, .markdown-body ol { margin: 0.5em 0; padding-left: 1.5em; }
         .markdown-body li { margin: 0.25em 0; }
-        .markdown-body code { background: #1f2937; color: #f472b6; padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
+        .markdown-body code { background: #1f2937; color: var(--color-primary-400); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em; }
         .markdown-body pre { background: #1a1a2e; padding: 1em; border-radius: 8px; overflow-x: auto; margin: 0.8em 0; border: 1px solid #333; }
         .markdown-body pre code { background: transparent; color: #d1d5db; padding: 0; font-size: 0.85em; }
-        .markdown-body blockquote { border-left: 3px solid #ec4899; padding: 0.25em 1em; margin: 0.8em 0; background: #1a1a2e; border-radius: 0 8px 8px 0; color: #9ca3af; }
+        .markdown-body blockquote { border-left: 3px solid var(--color-primary); padding: 0.25em 1em; margin: 0.8em 0; background: #1a1a2e; border-radius: 0 8px 8px 0; color: #9ca3af; }
         .markdown-body table { width: 100%; border-collapse: collapse; margin: 0.8em 0; display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .markdown-body th, .markdown-body td { border: 1px solid #333; padding: 0.5em 0.75em; text-align: left; }
-        .markdown-body th { background: #1f2937; color: #f472b6; font-weight: 600; }
+        .markdown-body th { background: #1f2937; color: var(--color-primary-400); font-weight: 600; }
         .markdown-body td { background: #111; }
         .markdown-body hr { border: none; border-top: 1px solid #333; margin: 1.5em 0; }
         .markdown-body img { max-width: 100%; border-radius: 6px; margin: 0.8em 0; }
@@ -105,7 +105,18 @@
         }
     </style>
 
-    <!-- 首帧直达：根据 URL hash 预置初始页面，避免从播放页返回时先渲染首页再切换造成闪动 -->
+    <!-- 私密模式主题：按 localStorage 的 hiddenContentMode 在首帧之前打标记，
+     css/variables.css 的 html[data-hidden-mode] 据此把主题色切成鸿蒙便签黄（正常模式仍是霓虹粉） -->
+<script>
+    (function () {
+        try {
+            if (localStorage.getItem('hiddenContentMode') === 'true') {
+                document.documentElement.setAttribute('data-hidden-mode', '1');
+            }
+        } catch (e) { /* localStorage 不可用时按正常模式渲染 */ }
+    })();
+</script>
+<!-- 首帧直达：根据 URL hash 预置初始页面，避免从播放页返回时先渲染首页再切换造成闪动 -->
     <script>
         (function () {
             var n = (location.hash || '').replace('#', '');
@@ -175,7 +186,7 @@
             font-size: clamp(26px, 15vw, 82px);
             font-weight: 900;
             color: rgba(255, 255, 255, 0.92);
-            text-shadow: 0 0 28px rgba(236, 72, 153, 0.55);
+            text-shadow: 0 0 28px rgba(var(--color-primary-rgb), 0.55);
         }
         @media (prefers-reduced-motion: reduce) {
             #bootSplash canvas { display: none; }
@@ -203,6 +214,17 @@
         // 本次加载是否来自数据域切换（设置页卡片先消散、再把标记写进 sessionStorage 后重载）。
         // 键名与 js/app/app-routing.js 的 PARTICLE_SWEEP_KEY 一致，改动需同步；
         // 此处必须在 bundle 执行前读，bundle 里的 playDomainTransition 会把它清掉
+        // 主题色：正常模式霓虹粉，私密模式鸿蒙便签黄（属性由 head 内联脚本在首帧前设置好）。
+        // 占位脚本早于 dist bundle 执行，因此这里不依赖任何全局函数
+        var THEME_RGB = (function () {
+            try {
+                return document.documentElement.hasAttribute('data-hidden-mode') ? [184, 115, 51] : [236, 72, 153];
+            } catch (e) { return [236, 72, 153]; }
+        })();
+        function themeRgba(alpha) {
+            return 'rgba(' + THEME_RGB[0] + ',' + THEME_RGB[1] + ',' + THEME_RGB[2] + ',' + alpha + ')';
+        }
+
         var fromDomainSwitch = false;
         try { fromDomainSwitch = sessionStorage.getItem('leletv_particle_sweep') === '1'; } catch (e) { /* 忽略 */ }
         if (fromDomainSwitch) {
@@ -235,7 +257,7 @@
         var PARTICLE_MAX = 800;    // 800 与 1200 观感几乎无差，逐帧填充更省
         var ALPHA_STEPS = 32;
         var PALETTE = [
-            { rgb: [236, 72, 153], weight: 0.55 },   // 主题粉
+            { rgb: THEME_RGB, weight: 0.55 },        // 主题色
             { rgb: [255, 255, 255], weight: 0.25 },  // 高光白
             { rgb: [226, 232, 240], weight: 0.2 }    // 浅灰
         ];
@@ -359,9 +381,9 @@
             var inner = Math.max(1, radius * 0.72);
             var outer = Math.max(inner + 1, radius * 1.2);
             var grad = ctx.createRadialGradient(c.x, c.y, inner, c.x, c.y, outer);
-            grad.addColorStop(0, 'rgba(236,72,153,0)');
-            grad.addColorStop(0.55, 'rgba(236,72,153,0.42)');
-            grad.addColorStop(1, 'rgba(236,72,153,0)');
+            grad.addColorStop(0, themeRgba(0));
+            grad.addColorStop(0.55, themeRgba(0.42));
+            grad.addColorStop(1, themeRgba(0));
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(c.x, c.y, outer, 0, Math.PI * 2);
@@ -378,7 +400,7 @@
             ctx.font = '900 ' + size + 'px "MapleMono", monospace';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.shadowColor = 'rgba(236, 72, 153, 0.55)';
+            ctx.shadowColor = themeRgba(0.55);
             ctx.shadowBlur = 28;
             ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.fillText(TEXT, 0, 0);
@@ -883,7 +905,7 @@
                                         LeLeTV 是自用的在线视频搜索平台，提供视频搜索和播放服务，请勿擅自分享本网站，如需分享或者任何问题和建议可以☞<span class="contact-link text-blue-400 underline cursor-pointer transition-all duration-300 hover:text-blue-300 hover:underline-offset-2">联系乐乐</span>。
                                     </p>
                                     <div class="flex flex-row justify-center gap-3">
-                                        <button data-action="switch-page" data-page="readme" class="flex-1 px-4 py-2.5 bg-[#ec4899] hover:bg-[#db2777] text-white rounded-lg transition-all duration-300 flex items-center justify-center font-semibold text-sm cursor-pointer">
+                                        <button data-action="switch-page" data-page="readme" class="flex-1 px-4 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg transition-all duration-300 flex items-center justify-center font-semibold text-sm cursor-pointer">
                                             <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                             </svg>
@@ -1003,7 +1025,7 @@
             <div class="flex flex-col sm:flex-row items-center justify-between gap-1 max-sm:text-center">
                 <span id="footerVersionDisplay" class="text-gray-400 text-sm max-sm:text-xs sm:text-left"></span>
                 <p class="text-gray-400 text-sm max-sm:text-xs text-center">© 2025 LeLeTV — 仅供学习使用，禁止商业用途</p>
-                <button data-action="open-disclaimer" class="text-gray-400 hover:text-[#ec4899] text-sm max-sm:text-xs transition-colors cursor-pointer bg-transparent border-none p-0">《用户使用协议》</button>
+                <button data-action="open-disclaimer" class="text-gray-400 hover:text-pink-500 text-sm max-sm:text-xs transition-colors cursor-pointer bg-transparent border-none p-0">《用户使用协议》</button>
             </div>
         </div>
     </footer>
@@ -1023,7 +1045,7 @@
 
     <!-- 邀请码登录弹窗 -->
     <div id="inviteLoginModal" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[65] transition-opacity duration-300">
-        <div class="bg-[#111] p-7 rounded-xl w-11/12 max-w-md border border-[#222] shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(236,72,153,0.1)]">
+        <div class="bg-[#111] p-7 rounded-xl w-11/12 max-w-md border border-[#222] shadow-[0_8px_40px_rgba(0,0,0,0.5),0_0_0_1px_rgba(var(--color-primary-rgb),0.1)]">
             <div class="text-center mb-6">
                 <h2 class="text-2xl font-bold gradient-text">🎬 LeLeTV</h2>
                 <p class="text-gray-400 text-sm mt-2">输入邀请码和设备名进入</p>
@@ -1052,7 +1074,7 @@
     <!-- 邀请码获取指南弹窗 -->
     <div id="inviteGuideModal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-[60]">
         <div class="bg-[#111] p-6 rounded-lg border border-[#333] w-11/12 max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold text-[#ec4899] mb-5 text-center">获取邀请码</h2>
+            <h2 class="text-xl font-bold text-pink-500 mb-5 text-center">获取邀请码</h2>
             <div class="text-gray-300 space-y-4 text-sm">
                 <p>邀请码是访问 LeLeTV 的通行凭证，目前获取方式如下：</p>
                 <div class="bg-[#1a1a1a] rounded-lg p-4 border border-[#333]">
@@ -1180,8 +1202,8 @@
 
 
 
-    <script src="dist/leletv-core.hvev6v.js?v=v3.4.0" defer></script>
-    <script src="dist/leletv-app.9l856j.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-core.ujnmva.js?v=v3.4.0" defer></script>
+    <script src="dist/leletv-app.nigon4.js?v=v3.4.0" defer></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

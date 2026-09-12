@@ -34,8 +34,8 @@ var PARTICLE_WIND_X = 42;          // 风的水平推力（px，正值向右；�
 var PARTICLE_WIND_Y = -18;         // 风的上升分量（px，负值向上）
 var PARTICLE_GUST = 0.3;           // 阵风幅度：整体风力的周期性强弱（0 = 恒定风）
 var PARTICLE_ALPHA_STEPS = 32;     // 透明度量化档数（预生成颜色串，避免逐帧拼接字符串）
-var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题粉 + 高光白 + 浅灰
-  { rgb: [236, 72, 153], weight: 0.55 },
+var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题色 + 高光白 + 浅灰
+  { rgb: null, weight: 0.55 },       // 主题色：首次构建颜色表时按当前主题填充（见 _particleColorTable）
   { rgb: [255, 255, 255], weight: 0.25 },
   { rgb: [226, 232, 240], weight: 0.2 }
 ];
@@ -44,6 +44,37 @@ var PARTICLE_PALETTE = [           // 深色主题下的"尘埃"配色：主题�
 // 成型后爆开，再让设置页内容整体淡入。
 // 消散与入场都以"整个设置页内容"为整体目标（首帧经 css 的 data-init-page 规则隐藏，
 // 随后由 data-particle-in 接手，避免框架漏出来、再出卡片造成的闪现）。
+
+// ===== 主题色取值（正常模式霓虹粉 / 私密模式鸿蒙便签黄）=====
+// 结果缓存一次：模式切换会整页重载，页面生命周期内不会变，
+// 避免逐帧 getComputedStyle 触发布局/样式重算
+var _themeRgbCache = null;
+function _themeRgbParts() {
+  if (_themeRgbCache) return _themeRgbCache;
+  var parts = null;
+  try {
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-rgb').trim();
+    var arr = v.split(',').map(function (n) { return parseInt(n, 10); });
+    if (arr.length === 3 && arr[0] >= 0 && arr[1] >= 0 && arr[2] >= 0) parts = arr;
+  } catch (e) { /* 忽略 */ }
+  if (!parts) {
+    parts = document.documentElement.hasAttribute('data-hidden-mode') ? [184, 115, 51] : [236, 72, 153];
+  }
+  _themeRgbCache = parts;
+  return parts;
+}
+function _themeRgba(alpha) {
+  var c = _themeRgbParts();
+  return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + alpha + ')';
+}
+function _themeHex() {
+  try {
+    var v = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+    if (v) return v;
+  } catch (e) { /* 忽略 */ }
+  return document.documentElement.hasAttribute('data-hidden-mode') ? '#B87333' : '#ec4899';
+}
+
 var DOMAIN_GATHER_MS = 680;      // 粒子螺旋凝聚 + 字样成形
 var DOMAIN_HOLD_MS = 140;        // 成型停留
 var DOMAIN_BURST_MS = 380;       // 爆开
@@ -121,6 +152,7 @@ function _particlePickColor() {
 var _particleColorCache = null;
 function _particleColorTable() {
   if (_particleColorCache) return _particleColorCache;
+  if (!PARTICLE_PALETTE[0].rgb) PARTICLE_PALETTE[0].rgb = _themeRgbParts();
   var table = [];
   PARTICLE_PALETTE.forEach(function (p) {
     var row = [];
@@ -564,9 +596,9 @@ function _domainDrawRing(ctx, center, radius, alpha) {
   var inner = Math.max(1, radius * 0.72);
   var outer = Math.max(inner + 1, radius * 1.2);
   var g = ctx.createRadialGradient(center.x, center.y, inner, center.x, center.y, outer);
-  g.addColorStop(0, 'rgba(236,72,153,0)');
-  g.addColorStop(0.55, 'rgba(236,72,153,0.42)');
-  g.addColorStop(1, 'rgba(236,72,153,0)');
+  g.addColorStop(0, _themeRgba(0));
+  g.addColorStop(0.55, _themeRgba(0.42));
+  g.addColorStop(1, _themeRgba(0));
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(center.x, center.y, outer, 0, Math.PI * 2);
@@ -584,7 +616,7 @@ function _domainDrawBrand(ctx, center, fontSize, scale, alpha) {
   ctx.font = '900 ' + fontSize + 'px "MapleMono", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(236, 72, 153, 0.55)';
+  ctx.shadowColor = _themeRgba(0.55);
   ctx.shadowBlur = 28;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.fillText(DOMAIN_TEXT, 0, 0);
@@ -933,7 +965,7 @@ function closeInviteGuideModal() {
 
 document.addEventListener('DOMContentLoaded', function() {
   AppInit.register('aurora', AppInit.PHASES.POST, function() {
-    initAurora({ selector: '#auroraContainer', colorStops: ['#3A29FF', '#ec4899', '#FFD700'], amplitude: 0.45, blend: 0.6, speed: 0.35 });
+    initAurora({ selector: '#auroraContainer', colorStops: ['#3A29FF', _themeHex(), '#FFD700'], amplitude: 0.45, blend: 0.6, speed: 0.35 });
   });
   AppInit.register('hash-routing', AppInit.PHASES.POST, function() {
     // 重载恢复页优先（如切换隐藏/正常内容模式后要留在设置页），其次 URL hash，最后默认首页

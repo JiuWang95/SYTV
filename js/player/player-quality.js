@@ -51,7 +51,7 @@ function toggleQualityMenu(art, hls, btn) {
   function makeItem(text, isActive, onClick) {
     var el = document.createElement('div');
     el.textContent = text;
-    el.style.cssText = 'padding:8px 16px;cursor:pointer;color:' + (isActive ? '#ec4899' : 'rgba(255,255,255,0.85)') + ';font-size:13px;transition:background 0.15s;';
+    el.style.cssText = 'padding:8px 16px;cursor:pointer;color:' + (isActive ? ((typeof themeColor === 'function') ? themeColor() : '#ec4899') : 'rgba(255,255,255,0.85)') + ';font-size:13px;transition:background 0.15s;';
     el.onmouseenter = function() { this.style.background = 'rgba(255,255,255,0.1)'; };
     el.onmouseleave = function() { this.style.background = 'none'; };
     el.onclick = function(e) { e.stopPropagation(); onClick(); menu.remove(); };
