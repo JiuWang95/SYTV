@@ -173,6 +173,14 @@ const AGGREGATED_SEARCH_CONFIG = {
     showSourceBadges: true    // 是否显示来源徽章
 };
 
+// 源延迟分级阈值（搜索结果页的延迟标注 与 播放页换源测速 共用同一套配色规则）
+const SOURCE_LATENCY_FAST_MS = 1000;   // < 1s  → 快（绿）
+const SOURCE_LATENCY_SLOW_MS = 2000;   // ≥ 2s  → 慢（红）；两者之间为 中（黄）
+
+// 搜索结果提前退出：到达 CUTOFF_MS 时若已有 >= MIN_SOURCES 个源返回，就不再等待剩余源
+const SEARCH_EARLY_EXIT_CUTOFF_MS = 3000;
+const SEARCH_EARLY_EXIT_MIN_SOURCES = 3;
+
 // 抽象API请求配置
 const API_CONFIG = {
     search: {

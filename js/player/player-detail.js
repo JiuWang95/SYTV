@@ -79,8 +79,8 @@ function formatSpeedDisplay(speedResult) {
   if (speedResult.speed === -1) return '<span class="speed-indicator error">\u274c ' + (speedResult.error || '\u5931\u8d25') + '</span>';
   var s = speedResult.speed;
   var cls = 'speed-indicator good', ico = '\ud83d\udfe2';
-  if (s > 500) { cls = 'speed-indicator poor'; ico = '\ud83d\udd34'; }
-  else if (s > 200) { cls = 'speed-indicator medium'; ico = '\ud83d\udfe1'; }
+  if (s >= SOURCE_LATENCY_SLOW_MS) { cls = 'speed-indicator poor'; ico = '\ud83d\udd34'; }
+  else if (s >= SOURCE_LATENCY_FAST_MS) { cls = 'speed-indicator medium'; ico = '\ud83d\udfe1'; }
   return '<span class="' + cls + '">' + ico + ' ' + s + 'ms</span>';
 }
 

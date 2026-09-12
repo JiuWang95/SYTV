@@ -852,12 +852,9 @@ async function search() {
     }
 }
 
-// 搜索结果提前退出策略：
+// 搜索结果提前退出策略（阈值定义在 config.js，与播放页换源共用）：
 // 到达 CUTOFF_MS 时，若已有 >= MIN_SOURCES 个源返回了结果，就不再等待剩余源。
 // 被放弃的源其 HTTP 请求仍会跑完并写入搜索缓存，下次搜索即可秒回，不会白费。
-const SEARCH_EARLY_EXIT_CUTOFF_MS = 3000;
-const SEARCH_EARLY_EXIT_MIN_SOURCES = 3;
-
 async function performTraditionalSearch(query) {
     let doneCount = 0;
 

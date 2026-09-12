@@ -801,8 +801,30 @@ async function showSwitchResourceModal() {
     let speedResults = {};
 
     // 对所有源：搜索 + 测速并行执行，渐进式渲染
+    // 与搜索结果页同一套提前退出策略：到点后若已有足够多的源命中，就不再等剩余源
+    let doneCount = 0;
     await Promise.all(resourceOptions.map(async (opt) => {
-        let queryResult = await searchByAPIAndKeyWord(opt.key, currentVideoTitle);
+        const queryResult = await new Promise(resolve => {
+            let settled = false;
+            let cutoffTimer = null;
+            const finish = (value) => {
+                if (settled) return;
+                settled = true;
+                if (cutoffTimer) clearTimeout(cutoffTimer);
+                resolve(value);
+            };
+            cutoffTimer = setTimeout(() => {
+                if (doneCount >= SEARCH_EARLY_EXIT_MIN_SOURCES) finish(null);
+            }, SEARCH_EARLY_EXIT_CUTOFF_MS);
+
+            searchByAPIAndKeyWord(opt.key, currentVideoTitle)
+                .then(results => {
+                    if (Array.isArray(results) && results.length > 0) doneCount++;
+                    finish(results);
+                })
+                .catch(() => finish(null));
+        });
+
         if (!queryResult || queryResult.length === 0) return;
         let result = queryResult[0];
         queryResult.forEach((res) => { if (res.vod_name === currentVideoTitle) result = res; });

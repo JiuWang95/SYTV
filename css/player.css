@@ -1149,20 +1149,21 @@ main.container {
     line-height: 1;
 }
 
+/* 与搜索结果页的源延迟标注保持同一套配色（快/中/慢） */
 .speed-indicator.good {
-    color: #10b981;
+    color: #4ade80;
 }
 
 .speed-indicator.medium {
-    color: #f59e0b;
+    color: #fbbf24;
 }
 
 .speed-indicator.poor {
-    color: #ef4444;
+    color: #f87171;
 }
 
 .speed-indicator.error {
-    color: #ef4444;
+    color: #f87171;
 }
 
 .speed-badge {
