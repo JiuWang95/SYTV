@@ -1,4 +1,25 @@
 // 改进的API请求处理函数
+
+/**
+ * 规范化播放地址。
+ *
+ * 部分采集站（新浪/光速/豪华/极速等）返回的是「播放页」地址而非播放列表，
+ * 例如 https://v.gsuus.com/play/kazVzrma —— 该地址返回的是一张 HTML 播放页，
+ * 直接交给 hls.js 会因为内容不是 #EXTM3U 而一直卡在加载中。
+ * 真实播放列表在同一路径下追加 /index.m3u8。
+ *
+ * @param {string} url 采集站返回的原始播放地址
+ * @returns {string} 可直接交给播放器的地址
+ */
+function normalizePlayUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    // 已经是 m3u8 播放列表，原样返回
+    if (/\.m3u8(\?|#|$)/i.test(url)) return url;
+    // 播放页形式：{origin}/play/{id} → 补全真实播放列表
+    if (/\/play\/[^/?#]+$/i.test(url)) return url + '/index.m3u8';
+    return url;
+}
+
 async function handleApiRequest(url) {
     const customApi = url.searchParams.get('customApi') || '';
     const customDetail = url.searchParams.get('customDetail') || '';
@@ -171,6 +192,10 @@ async function handleApiRequest(url) {
                     const matches = videoDetail.vod_content.match(M3U8_PATTERN) || [];
                     episodes = matches.map(link => link.replace(/^\$/, ''));
                 }
+
+                // 规范化播放地址：部分采集站返回的是「播放页」地址（如 /play/xxxx），
+                // 需补全为真实播放列表，否则播放器会一直卡在加载中（详见 normalizePlayUrl）
+                episodes = episodes.map(normalizePlayUrl);
                 
                 return JSON.stringify({
                     code: 200,

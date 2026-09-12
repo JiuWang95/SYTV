@@ -80,9 +80,11 @@ const API_SITES = {
         name: '豪华资源'
     },
     
-    jpzy: {
-        api: 'https://hhzyapi.com/api.php/provide/vod',
-        name: '荐片资源'
+    // 原 jpzy（荐片资源）的 api 与 hhzy 完全相同（重复配置），已替换为 ffzy（飞飞资源）。
+    // from/ffm3u8/at/json/ 直接返回 .m3u8，与 lzzy/hnzy 同一模式，无需二次解析。
+    ffzy: {
+        api: 'https://api.ffzyapi.com/api.php/provide/vod/from/ffm3u8/at/json/',
+        name: '非凡资源'
     },
 
     lzzy: {
