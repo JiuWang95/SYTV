@@ -3,7 +3,7 @@
 
 // 阶段 5B-1：selectedAPIs / customAPIs 已迁至 src/core/state.ts。
 // 这里保留 window getter/setter 代理，旧调用方零改动。
-import { API_SITES, selectedAPIs, setSelectedAPIs, customAPIs, setCustomAPIs, scopedKey, isHiddenContentMode } from '../../core/state';
+import { API_SITES, selectedAPIs, setSelectedAPIs, customAPIs, setCustomAPIs, scopedKey, isHiddenContentMode, remoteDefaultKeys, remoteHiddenDefaultKeys } from '../../core/state';
 import type { CustomApiEntry } from '../../core/state';
 
 export type { CustomApiEntry };
@@ -304,21 +304,59 @@ export function refreshDataSources(hasUserSelected: boolean): void {
     localStorage.setItem('lastRefreshTime', currentTime.toString());
 }
 
-// 正常域默认选中数量；具体取哪些源由 Worker 下发顺序决定
+// 正常域没有 Worker 默认配置时的兜底数量；具体取哪些源由 Worker 下发顺序决定
 const DEFAULT_SOURCE_COUNT = 6;
 
 /**
- * 数据域内的默认选中源：正常域取 Worker 下发顺序的前 6 个普通源，
- * 隐藏域从私密源里随机抽 5 个。没有源时返回空数组，等远端加载后补选。
+ * 数据域内的默认选中源。
+ *
+ * 优先使用 Worker 面板里标记为「默认」的源（接口返回的 defaults，按面板顺序）；
+ * 没有配置时保持旧逻辑：正常域取 Worker 下发顺序的前 6 个普通源，隐藏域随机抽 5 个私密源。
+ * 没有源时返回空数组，等远端加载后补选。
  */
 export function getDefaultDataSources(): string[] {
-    if (!isHiddenContentMode()) {
+    const hiddenMode = isHiddenContentMode();
+    const configured = hiddenMode ? remoteHiddenDefaultKeys : remoteDefaultKeys;
+    // 只接受当前数据域里真实存在且未跨域的源，Worker 配错或源被停用/删除时静默忽略
+    const fromWorker = configured.filter(key => {
+        const api = API_SITES[key];
+        return !!api && (hiddenMode ? !!api.hidden : !api.hidden);
+    });
+    if (fromWorker.length) return fromWorker;
+
+    if (!hiddenMode) {
         const normalKeys = Object.keys(API_SITES).filter(
             key => API_SITES[key] && !API_SITES[key].hidden
         );
         return normalKeys.slice(0, DEFAULT_SOURCE_COUNT);
     }
     return getRandomDataSources(5);
+}
+
+/**
+ * 远端默认源变化后，对「从未手动选过源」的用户重新应用一次默认选择。
+ * 用户动过开关（hasUserSelectedAPIs = true）时不覆盖；返回是否发生了改动。
+ */
+export function applyRemoteDefaultsIfUnselected(): boolean {
+    try {
+        if (localStorage.getItem('hasUserSelectedAPIs') === 'true') return false;
+        // 没有 Worker 默认配置时保持原行为，避免网络失败后把用户选择重置成兜底的前 6 个
+        const configured = isHiddenContentMode() ? remoteHiddenDefaultKeys : remoteDefaultKeys;
+        if (!configured.length) return false;
+        const defaults = getDefaultDataSources();
+        if (!defaults.length) return false;
+        const same = defaults.length === selectedAPIs.length
+            && defaults.every((key, index) => key === selectedAPIs[index]);
+        if (same) return false;
+
+        setSelectedAPIs(defaults.slice());
+        localStorage.setItem(scopedKey('selectedAPIs'), JSON.stringify(selectedAPIs));
+        localStorage.setItem('lastRefreshTime', Date.now().toString());
+        return true;
+    } catch (e) {
+        console.warn('应用远端默认源失败:', e);
+        return false;
+    }
 }
 
 // 随机选择指定数量的数据源（按当前数据域取池子：正常域取普通源，隐藏域取隐藏源）
@@ -638,6 +676,7 @@ Object.assign(window, {
   DATA_SOURCE_LOGIC_VERSION,
   applyNewDataSourceLogic,
   getDefaultDataSources,
+  applyRemoteDefaultsIfUnselected,
   getRandomDataSources,
   checkHiddenAPIsSelected,
   renderCustomAPIsList,
@@ -673,6 +712,7 @@ declare global {
   const DATA_SOURCE_LOGIC_VERSION: string;
   function applyNewDataSourceLogic(): void;
   function getDefaultDataSources(): string[];
+  function applyRemoteDefaultsIfUnselected(): boolean;
   function getRandomDataSources(count: number): string[];
   function checkHiddenAPIsSelected(): void;
   function renderCustomAPIsList(): void;

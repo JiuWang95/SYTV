@@ -1,5 +1,6 @@
 import { isHiddenContentMode } from '../../core/config';
 import type { ApiSite } from '../../core/config';
+import { setRemoteDefaultKeys } from '../../core/state';
 
 /**
  * 远端数据源同步
@@ -26,6 +27,10 @@ interface RemoteSourcesCache {
     version?: string;
     sites?: Record<string, RemoteSourceLike>;
     hiddenSites?: Record<string, RemoteSourceLike>;
+    /** Worker 面板标记为默认的普通源 key，按面板顺序 */
+    defaults?: unknown;
+    /** 同上，私密源 */
+    hiddenDefaults?: unknown;
     savedAt?: number;
 }
 
@@ -33,6 +38,8 @@ interface RemoteSourcesResponse {
     ok?: boolean;
     version?: string;
     sites?: Record<string, RemoteSourceLike>;
+    /** Worker 面板标记为默认的源 key，按面板顺序 */
+    defaults?: unknown;
     error?: string;
 }
 
@@ -85,12 +92,35 @@ function readRemoteSourcesCache(): RemoteSourcesCache | null {
     }
 }
 
-function writeRemoteSourcesCache(version: unknown, sites: unknown, hiddenSites: unknown): void {
+/** Worker 下发的默认源 key 列表：只保留非空字符串并去重，顺序即面板顺序 */
+function normalizeDefaultKeys(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    value.forEach((item) => {
+        if (typeof item !== 'string') return;
+        const key = item.trim();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        keys.push(key);
+    });
+    return keys;
+}
+
+function writeRemoteSourcesCache(
+    version: unknown,
+    sites: unknown,
+    hiddenSites: unknown,
+    defaults: unknown,
+    hiddenDefaults: unknown
+): void {
     try {
         localStorage.setItem(REMOTE_SOURCES_CACHE_KEY, JSON.stringify({
             version: version || '',
             sites: sites || {},
             hiddenSites: hiddenSites || {},
+            defaults: Array.isArray(defaults) ? defaults : [],
+            hiddenDefaults: Array.isArray(hiddenDefaults) ? hiddenDefaults : [],
             savedAt: Date.now()
         }));
     } catch (e) {
@@ -196,6 +226,10 @@ export function applyRemoteApiSitesFromCache(): string[] {
         Object.keys(cachedHiddenSites).forEach((k) => { sites[k] = cachedHiddenSites[k]; });
     }
 
+    // 默认源跟随同一份缓存：首屏就能按 Worker 上次下发的配置选中，不必等网络
+    setRemoteDefaultKeys(normalizeDefaultKeys(cached.defaults), false);
+    setRemoteDefaultKeys(hiddenMode ? normalizeDefaultKeys(cached.hiddenDefaults) : [], true);
+
     return applyRemoteApiSites(sites);
 }
 
@@ -247,11 +281,22 @@ export function syncRemoteApiSites(): Promise<string[]> {
             console.warn('私密数据源下发失败，本次只使用普通源:', hiddenRes.error);
         }
 
+        // 默认源以 Worker 最新配置为准；私密源那次失败时保留本地缓存里的默认列表
+        const defaults = normalizeDefaultKeys(publicRes.defaults);
+        const previousCache = readRemoteSourcesCache() || {};
+        const hiddenDefaults = hiddenOk
+            ? normalizeDefaultKeys(hiddenRes ? hiddenRes.defaults : undefined)
+            : normalizeDefaultKeys(previousCache.hiddenDefaults);
+        setRemoteDefaultKeys(defaults, false);
+        setRemoteDefaultKeys(hiddenMode ? hiddenDefaults : [], true);
+
         // 私密源那次失败时不覆盖缓存，避免把上次的私密源缓存抹成空
         writeRemoteSourcesCache(
             publicRes.version,
             publicRes.sites,
-            hiddenOk ? hiddenRes.sites : (readRemoteSourcesCache() || {}).hiddenSites
+            hiddenOk ? hiddenRes.sites : previousCache.hiddenSites,
+            defaults,
+            hiddenDefaults
         );
 
         return changed;

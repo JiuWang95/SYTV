@@ -11,13 +11,13 @@
 // GET  /invite/list, /invite/stats
 //
 // 视频源配置与管理面板（源列表已从 config.js 搬到 D1，表结构见 migrations/004_add_api_sites.sql）：
-// GET  /api-sites               公开只读，仅返回启用的普通源（边缘缓存 60s）
+// GET  /api-sites               公开只读，仅返回启用的普通源（边缘缓存 60s），defaults 为面板标记的默认源
 // GET  /api-sites/hidden        隐私模式读取（HIDDENKEY 或管理员 token），返回启用的私密源（18+）
 // GET  /admin                   管理面板页面（自带登录框，页面本身不鉴权）
 // POST /admin/login             账号（ADMINUSER）+ 密码（ADMINKEY）换取 Bearer token
 // GET  /admin/status            运行状态（TMDB 配置、D1 就绪、源数量），需管理员鉴权
 // GET  /admin/api-sites/list    全量列表（含停用与私密），需管理员鉴权
-// POST /admin/api-sites/save | /delete | /toggle，需管理员鉴权
+// POST /admin/api-sites/save | /delete | /toggle | /default，需管理员鉴权
 // POST /admin/api-sites/import   导入 LibreTV / TVBOX 源列表（按 key / URL 合并），需管理员鉴权
 // GET  /admin/api-sites/export   全量 JSON 导出（含停用/私密），需管理员鉴权
 // POST /admin/api-sites/share    生成普通 / 私密 / 全部源的分享链接，需管理员鉴权
@@ -59,6 +59,23 @@ async function hasSignatureColumn(env) {
   }
   _signatureColumnChecked = true;
   return _hasSignatureColumn;
+}
+
+// api_sites.is_default 列是否存在（005 迁移是否已执行）。
+// 为真后永久缓存；为假则每次重探，便于迁移执行后无需重启即自动生效。
+let _defaultColumnChecked = false;
+let _hasDefaultColumn = false;
+async function hasDefaultColumn(env) {
+  if (_defaultColumnChecked && _hasDefaultColumn) return true;
+  try {
+    await env.INVITE_DB.prepare('SELECT is_default FROM api_sites LIMIT 1').first();
+    _hasDefaultColumn = true;
+  } catch {
+    _hasDefaultColumn = false;
+    console.warn('[api-sites] api_sites.is_default 不存在，请执行 migrations/005_add_api_site_default.sql');
+  }
+  _defaultColumnChecked = true;
+  return _hasDefaultColumn;
 }
 
 // D1 的 run() 结果里受影响行数位于 meta.changes，顶层没有 changes 字段；
@@ -973,9 +990,13 @@ async function serveApiSites(env, ctx, url, hidden) {
   }
 
   let rows;
+  let hasDefault = false;
   try {
+    hasDefault = await hasDefaultColumn(env);
+    const columns = 'source_key, name, api, detail, hidden, updated_at'
+      + (hasDefault ? ', is_default' : '');
     const result = await env.INVITE_DB.prepare(
-      'SELECT source_key, name, api, detail, hidden, updated_at FROM api_sites'
+      `SELECT ${columns} FROM api_sites`
       + ' WHERE enabled = 1 AND hidden = ? ORDER BY sort_order ASC, id ASC'
     ).bind(hidden ? 1 : 0).all();
     rows = (result && result.results) || [];
@@ -985,10 +1006,16 @@ async function serveApiSites(env, ctx, url, hidden) {
     return jsonResponse({ ok: false, error: '数据源配置暂不可用', version: '', sites: {} }, 200);
   }
 
+  // 面板标记为默认的源，按当前域下发顺序排列；未执行 005 迁移时为空数组，前端回退旧逻辑
+  const defaults = hasDefault
+    ? rows.filter(row => !!row.is_default).map(row => row.source_key)
+    : [];
+
   const res = jsonResponse({
     ok: true,
     version: buildApiSitesVersion(rows),
     sites: apiSiteRowsToMap(rows),
+    defaults,
   }, 200);
 
   if (hidden) {
@@ -1003,9 +1030,11 @@ async function serveApiSites(env, ctx, url, hidden) {
 
 async function handleApiSiteList(env) {
   try {
+    const hasDefault = await hasDefaultColumn(env);
+    const columns = 'id, source_key, name, api, detail, hidden, enabled, sort_order, updated_at'
+      + (hasDefault ? ', is_default' : '');
     const result = await env.INVITE_DB.prepare(
-      'SELECT id, source_key, name, api, detail, hidden, enabled, sort_order, updated_at'
-      + ' FROM api_sites ORDER BY sort_order ASC, id ASC'
+      `SELECT ${columns} FROM api_sites ORDER BY sort_order ASC, id ASC`
     ).all();
     const sites = ((result && result.results) || []).map(row => ({
       id: row.id,
@@ -1015,9 +1044,10 @@ async function handleApiSiteList(env) {
       detail: row.detail || '',
       hidden: !!row.hidden,
       enabled: !!row.enabled,
+      isDefault: hasDefault ? !!row.is_default : false,
       updated_at: row.updated_at || 0,
     }));
-    return jsonResponse({ ok: true, sites }, 200);
+    return jsonResponse({ ok: true, sites, hasDefault }, 200);
   } catch (error) {
     console.error('[api-sites] 列表读取失败:', error && error.message);
     return jsonResponse({ ok: false, error: '读取失败：请确认已执行 migrations/004_add_api_sites.sql' }, 500);
@@ -1100,6 +1130,35 @@ async function handleApiSiteSave(request, env, url) {
   } catch (error) {
     console.error('[api-sites] 保存失败:', error && error.message);
     return jsonResponse({ ok: false, error: '保存失败：请确认已执行 migrations/004_add_api_sites.sql' }, 500);
+  }
+}
+
+/** POST /admin/api-sites/default —— 标记 / 取消标记默认源；body: { id, isDefault } */
+async function handleApiSiteDefault(request, env, url) {
+  const body = await request.json().catch(() => null);
+  const id = body ? (parseInt(body.id, 10) || 0) : 0;
+  if (!id) return jsonResponse({ ok: false, error: '缺少 id' }, 400);
+
+  if (!await hasDefaultColumn(env)) {
+    return jsonResponse({
+      ok: false,
+      error: '默认源功能未启用：请先执行 migrations/005_add_api_site_default.sql',
+    }, 500);
+  }
+
+  const isDefault = body.isDefault ? 1 : 0;
+  try {
+    const result = await env.INVITE_DB.prepare(
+      'UPDATE api_sites SET is_default = ?, updated_at = ? WHERE id = ?'
+    ).bind(isDefault, Date.now(), id).run();
+    if (affectedRows(result) === 0) {
+      return jsonResponse({ ok: false, error: '数据源不存在' }, 404);
+    }
+    await purgeApiSitesCache(url);
+    return jsonResponse({ ok: true, isDefault: !!isDefault }, 200);
+  } catch (error) {
+    console.error('[api-sites] 默认源设置失败:', error && error.message);
+    return jsonResponse({ ok: false, error: '操作失败' }, 500);
   }
 }
 
@@ -1240,6 +1299,9 @@ function normalizeImportEntry(raw) {
     || Object.prototype.hasOwnProperty.call(raw, 'detailUrl');
   const hasEnabled = Object.prototype.hasOwnProperty.call(raw, 'enabled');
   const hasHidden = Object.prototype.hasOwnProperty.call(raw, 'hidden');
+  const hasDefault = Object.prototype.hasOwnProperty.call(raw, 'isDefault')
+    || Object.prototype.hasOwnProperty.call(raw, 'is_default');
+  const rawDefault = raw.isDefault !== undefined ? raw.isDefault : raw.is_default;
 
   const entry = {
     key,
@@ -1250,6 +1312,8 @@ function normalizeImportEntry(raw) {
     enabled: hasEnabled ? ((raw.enabled === false || raw.enabled === 0 || raw.enabled === '0') ? 0 : 1) : null,
     // null = JSON 没写 hidden，更新时保留原私密状态；显式 false 才降级为普通源
     hidden: hasHidden ? raw.hidden === true : null,
+    // null = JSON 没写 isDefault，更新时保留原默认标记；导出文件可原样往返
+    defaultFlag: hasDefault ? (rawDefault === true || rawDefault === 1 || rawDefault === '1' ? 1 : 0) : null,
   };
 
   const detail = normalizeImportUrl(raw.detail || raw.detailUrl);
@@ -1389,6 +1453,7 @@ async function handleApiSiteImport(request, env, url) {
   const now = Date.now();
 
   try {
+    const hasDefault = await hasDefaultColumn(env);
     const existingResult = await env.INVITE_DB.prepare(
       'SELECT id, source_key, name, api, detail, hidden, enabled, sort_order, updated_at FROM api_sites'
     ).all();
@@ -1453,6 +1518,11 @@ async function handleApiSiteImport(request, env, url) {
           now,
           existing.id
         ));
+        if (hasDefault && source.defaultFlag !== null) {
+          statements.push(env.INVITE_DB.prepare(
+            'UPDATE api_sites SET is_default = ? WHERE id = ?'
+          ).bind(source.defaultFlag, existing.id));
+        }
         updated++;
         continue;
       }
@@ -1492,6 +1562,11 @@ async function handleApiSiteImport(request, env, url) {
         now,
         now
       ));
+      if (hasDefault && source.defaultFlag === 1) {
+        statements.push(env.INVITE_DB.prepare(
+          'UPDATE api_sites SET is_default = 1 WHERE source_key = ?'
+        ).bind(key));
+      }
       imported++;
     }
 
@@ -1520,20 +1595,25 @@ async function handleApiSiteImport(request, env, url) {
 
 // ====== 数据源导出（/sources.json、/admin/api-sites/export）======
 
-/** D1 行 → LibreTV SourceList；key/enabled 供面板 JSON 编辑与再次导入 */
-function buildSourceListPayload(rows) {
+/** D1 行 → LibreTV SourceList；key/enabled/isDefault 供面板 JSON 编辑与再次导入 */
+function buildSourceListPayload(rows, hasDefault) {
   return {
     name: 'LeLeTV-SourceList',
     version: 2,
     exportedAt: Date.now(),
-    sources: (rows || []).map((row) => ({
-      key: row.source_key,
-      name: row.name,
-      url: row.api,
-      detail: row.detail || '',
-      hidden: !!row.hidden,
-      enabled: !!row.enabled,
-    })),
+    sources: (rows || []).map((row) => {
+      const item = {
+        key: row.source_key,
+        name: row.name,
+        url: row.api,
+        detail: row.detail || '',
+        hidden: !!row.hidden,
+        enabled: !!row.enabled,
+      };
+      // 未执行 005 迁移时不输出该字段，避免再次导入时把默认标记显式清空
+      if (hasDefault) item.isDefault = !!row.is_default;
+      return item;
+    }),
   };
 }
 
@@ -1563,11 +1643,14 @@ async function handleSourceListExport(request, env, url) {
     const where = scope === 'hidden'
       ? 'enabled = 1 AND hidden = 1'
       : (scope === 'all' ? 'enabled = 1' : 'enabled = 1 AND hidden = 0');
+    const hasDefault = await hasDefaultColumn(env);
+    const columns = 'source_key, name, api, detail, hidden, enabled'
+      + (hasDefault ? ', is_default' : '');
     const result = await env.INVITE_DB.prepare(
-      'SELECT source_key, name, api, detail, hidden, enabled FROM api_sites'
+      `SELECT ${columns} FROM api_sites`
       + ' WHERE ' + where + ' ORDER BY sort_order ASC, id ASC'
     ).all();
-    const payload = buildSourceListPayload((result && result.results) || []);
+    const payload = buildSourceListPayload((result && result.results) || [], hasDefault);
     payload.scope = scope;
     return new Response(JSON.stringify(payload), {
       status: 200,
@@ -1616,12 +1699,15 @@ async function handleApiSiteShare(request, env, url) {
 /** GET /admin/api-sites/export —— 管理面板 JSON 编辑器用，含停用与私密源 */
 async function handleApiSiteExport(env) {
   try {
+    const hasDefault = await hasDefaultColumn(env);
+    const columns = 'source_key, name, api, detail, hidden, enabled'
+      + (hasDefault ? ', is_default' : '');
     const result = await env.INVITE_DB.prepare(
-      'SELECT source_key, name, api, detail, hidden, enabled FROM api_sites ORDER BY sort_order ASC, id ASC'
+      `SELECT ${columns} FROM api_sites ORDER BY sort_order ASC, id ASC`
     ).all();
     return jsonResponse({
       ok: true,
-      list: buildSourceListPayload((result && result.results) || []),
+      list: buildSourceListPayload((result && result.results) || [], hasDefault),
     }, 200);
   } catch (error) {
     console.error('[api-sites] 管理导出失败:', error && error.message);
@@ -1778,6 +1864,7 @@ button.danger:hover{background:#2a1a1c;border-color:#7f1d1d;color:#fca5a5}
 .tag.on{color:#22c55e;border-color:#14532d}
 .tag.off{color:#6b7280}
 .tag.priv{color:#ec4899;border-color:#831843}
+.tag.def{color:#fbbf24;border-color:#78350f}
 .msg{font-size:12px;min-height:18px;margin-top:12px}
 .msg.err{color:#f87171}
 .msg.ok{color:#4ade80}
@@ -2559,6 +2646,7 @@ input[type=file]::file-selector-button:hover{background:#2a2a30;color:#e0e0e0}
     listEl.innerHTML = sites.map(function (s) {
       var tags = '<span class="tag ' + (s.enabled ? 'on' : 'off') + '">' + (s.enabled ? '启用' : '停用') + '</span>';
       if (s.hidden) tags += '<span class="tag priv">私密</span>';
+      if (s.isDefault) tags += '<span class="tag def">默认</span>';
       return '<div class="item">' +
         '<div class="info">' +
           '<div class="nm">' + esc(s.name) + tags + '</div>' +
@@ -2569,6 +2657,7 @@ input[type=file]::file-selector-button:hover{background:#2a2a30;color:#e0e0e0}
         '</div>' +
         '<div class="ops">' +
           '<button data-act="edit" data-id="' + s.id + '">编辑</button>' +
+          '<button data-act="default" data-id="' + s.id + '" data-def="' + (s.isDefault ? '1' : '0') + '">' + (s.isDefault ? '取消默认' : '设为默认') + '</button>' +
           '<button data-act="toggle" data-id="' + s.id + '" data-on="' + (s.enabled ? '1' : '0') + '">' + (s.enabled ? '停用' : '启用') + '</button>' +
           '<button class="danger" data-act="del" data-id="' + s.id + '" data-name="' + esc(s.name) + '">删除</button>' +
         '</div>' +
@@ -2725,6 +2814,21 @@ input[type=file]::file-selector-button:hover{background:#2a2a30;color:#e0e0e0}
       return;
     }
 
+    if (act === 'default') {
+      var isDefault = btn.getAttribute('data-def') === '1';
+      btn.disabled = true;
+      call('/admin/api-sites/default', { id: id, isDefault: !isDefault }).then(function (res) {
+        say(msgEl, res.ok
+          ? (isDefault ? '已取消默认源' : '已设为默认源：未手动选源的用户下次打开生效，重置也会按此配置')
+          : (res.error || '操作失败'), res.ok ? 'ok' : 'err');
+        loadSites();
+      }).catch(function () {
+        btn.disabled = false;
+        say(msgEl, '网络错误', 'err');
+      });
+      return;
+    }
+
     if (act === 'del') {
       if (!window.confirm('确定删除数据源「' + btn.getAttribute('data-name') + '」？删除后无法恢复。')) return;
       btn.disabled = true;
@@ -2831,6 +2935,7 @@ async function handleApiSitesRequest(request, env, ctx, url) {
       '/admin/api-sites/save': 'POST',
       '/admin/api-sites/delete': 'POST',
       '/admin/api-sites/toggle': 'POST',
+      '/admin/api-sites/default': 'POST',
       '/admin/api-sites/import': 'POST',
       '/admin/api-sites/export': 'GET',
       '/admin/api-sites/share': 'POST',
@@ -2850,6 +2955,7 @@ async function handleApiSitesRequest(request, env, ctx, url) {
       if (path === '/admin/api-sites/share') return await handleApiSiteShare(request, env, url);
       if (path === '/admin/api-sites/save') return await handleApiSiteSave(request, env, url);
       if (path === '/admin/api-sites/delete') return await handleApiSiteDelete(request, env, url);
+      if (path === '/admin/api-sites/default') return await handleApiSiteDefault(request, env, url);
       if (path === '/admin/api-sites/import') return await handleApiSiteImport(request, env, url);
       return await handleApiSiteToggle(request, env, url);
     }

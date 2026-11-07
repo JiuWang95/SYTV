@@ -51,7 +51,7 @@ import {
 import type { LeLeTVAdapter } from './core/global';
 import { handlePageLoad, playHomeIntro, showPage } from './router/index';
 import { setupEventListeners, hookInput } from './pages/search/index';
-import { initAPICheckboxes } from './services/sources/config';
+import { initAPICheckboxes, applyRemoteDefaultsIfUnselected } from './services/sources/config';
 import { applyImportedSourcesFromCache } from './services/sources/imported';
 import { TIMING } from './core/timing';
 
@@ -154,7 +154,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // 网络再慢也不拖慢启动；只有列表真的变化时才重建设置页的复选框
     if (typeof mainWindow.syncRemoteApiSites === 'function') {
         mainWindow.syncRemoteApiSites().then(function (changed) {
-            if (changed && changed.length && typeof mainWindow.__LELETV_REFRESH_API_CHECKBOXES__ === 'function') {
+            // Worker 端默认源可能刚更新：未手动选过源的用户（含首次访问）按新配置重选一次
+            const defaultsChanged = applyRemoteDefaultsIfUnselected();
+            if (((changed && changed.length) || defaultsChanged)
+                && typeof mainWindow.__LELETV_REFRESH_API_CHECKBOXES__ === 'function') {
                 mainWindow.__LELETV_REFRESH_API_CHECKBOXES__();
             }
         });

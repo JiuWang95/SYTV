@@ -103,7 +103,7 @@ LeLeTV 是一个自用的在线视频搜索与观看平台，仅用于个人学�
 ### 数据源与缓存
 - 设置页可勾选/重置数据源配置，支持导入/导出源列表（文件选择、拖拽或粘贴订阅链接，兼容 LibreTV、TVBOX 等格式，导入自动去重合并），最多添加 5 个自定义采集站
 - 数据源列表带状态圆点与来源统计，区分普通 / 私密源以及云端 / 导入来源
-- 云端数据源：采集源存放在 D1，可在 `/admin` 面板在线增删改，也能导入源列表（粘贴内容 / 选文件 / 填订阅地址，兼容 LibreTV、TVBOX 等格式，按接口地址合并去重，可标记为私密源），前端启动时自动同步并缓存；内置源也已迁到云端，前端不再硬编码
+- 云端数据源：采集源存放在 D1，可在 `/admin` 面板在线增删改，也能导入源列表（粘贴内容 / 选文件 / 填订阅地址，兼容 LibreTV、TVBOX 等格式，按接口地址合并去重，可标记为私密源），前端启动时自动同步并缓存；内置源也已迁到云端，前端不再硬编码。面板可把任意源「设为默认」，前端按该配置初始化默认选中（未配置时仍取前 6 个普通源；已手动选过源的用户不受影响，点「重置」会重新应用）
 - 智能缓存管理：24 小时清理临时数据，保护用户设置与历史
 - **首页与导航偏好**：可关闭首页聚合动效、首页内容板块，导航可只显示图标（手机端始终只显示图标）；私密模式下聚合动效与内容板块默认关闭，仍可在设置里手动打开
 - PWA 可安装（`standalone` + `window-controls-overlay`），检测到可安装时弹出提示条（iOS / 局域网 http 给出手动步骤）
@@ -167,6 +167,7 @@ LeLeTV 是一个自用的在线视频搜索与观看平台，仅用于个人学�
 | `migrations/002_add_remark.sql` | 邀请码备注字段 |
 | `migrations/003_add_device_signature.sql` | 设备签名字段（同型号设备区分） |
 | `migrations/004_add_api_sites.sql` | 云端数据源表 `api_sites`（源名称、接口、私密、启停、排序） |
+| `migrations/005_add_api_site_default.sql` | 数据源默认选中标记（`is_default`，面板「设为默认」使用） |
 
 > 本地开发无需自建邀请码服务：`server.mjs` 只提供静态资源、视频代理与 TMDB 代理，邀请码相关请求统一由 `.env` 中的 `TMDB_WORKER_URL` 指向的线上 Worker 处理。
 
@@ -388,7 +389,7 @@ npm run dev
 ### 第二步（可选）：创建 D1 数据库
 
 1. Cloudflare Dashboard → **Workers & Pages** → **D1** → **创建数据库**（例如 `leletv-invite-db`）
-2. 在 D1 控制台按顺序执行 `migrations/` 下的脚本：`001_create_tables.sql`、`002_add_remark.sql`、`003_add_device_signature.sql`、`004_add_api_sites.sql`（`004` 为云端数据源表，未执行时前端自动回退内置源）
+2. 在 D1 控制台按顺序执行 `migrations/` 下的脚本：`001_create_tables.sql`、`002_add_remark.sql`、`003_add_device_signature.sql`、`004_add_api_sites.sql`、`005_add_api_site_default.sql`（`004` 为云端数据源表，未执行时前端自动回退内置源；`005` 为默认源标记，未执行时 Worker 自动降级）
 3. 回到 Worker → **设置** → **绑定** → 添加 D1 绑定，**变量名填 `INVITE_DB`**
 4. 在 `wrangler.toml` 中补上对应的 `[[d1_databases]]` 配置后重新部署
 

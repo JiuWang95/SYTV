@@ -59,6 +59,20 @@ export interface CustomApiEntry {
     isAdult?: boolean;
 }
 
+// Worker 面板里标记为「默认」的源 key，按面板顺序排列。
+// 普通域与私密域分开保存，避免私密源漏进普通模式。
+// 为空时前端退回旧逻辑（普通域取前 6 个，私密域随机 5 个）。
+export let remoteDefaultKeys: string[] = [];
+export let remoteHiddenDefaultKeys: string[] = [];
+
+export function setRemoteDefaultKeys(keys: unknown, hidden: boolean): void {
+    const list = Array.isArray(keys)
+        ? keys.filter((key): key is string => typeof key === 'string' && !!key.trim()).map(key => key.trim())
+        : [];
+    if (hidden) remoteHiddenDefaultKeys = list;
+    else remoteDefaultKeys = list;
+}
+
 export let selectedAPIs: string[] = [];
 export function getSelectedAPIs(): string[] {
     return selectedAPIs;
