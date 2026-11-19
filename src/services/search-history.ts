@@ -304,6 +304,18 @@ export function renderMobileSearchHistory(filterText: string): void {
     }
 }
 
+/**
+ * 换数据域后重读当前域的历史并刷新已经渲染的列表。
+ *
+ * 历史本身每次经 scopedKey 现读，没有内存快照；真正要换掉的是「按旧域画出来的 DOM」。
+ * 下拉先收起——旧域的搜索词一个都不该留在屏上——再按新域重建桌面下拉与移动列表。
+ */
+export function reloadSearchHistory(): void {
+    hideSearchHistory();
+    renderSearchHistory();
+    renderMobileSearchHistory('');
+}
+
 function _addSearchBarFlush(): void {
     const searchBar = document.querySelector('[data-searchbar]');
     if (searchBar) searchBar.classList.add('search-bar-flush');

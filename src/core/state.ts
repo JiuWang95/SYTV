@@ -37,6 +37,46 @@ export function scopedKey(key: string): string {
     return isHiddenContentMode() ? HIDDEN_KEY_PREFIX + key : key;
 }
 
+// ==================== 换域通知（同文档原地换域） ====================
+// 换域后各页手里的 DOM 还是旧域渲染的：历史列表、片源面板、收藏/在追卡片都要重画。
+// 派发方责任：先写 hiddenContentMode、清完缓存、重放源与主题，最后再广播本事件；
+// 监听方只重绘，不再碰存储——避免监听顺序影响读到的域。
+export const DOMAIN_CHANGE_EVENT = 'leletv:domainchange';
+
+export interface DomainChangeDetail {
+    /** 切换后的数据域：true = 私密域 */
+    hidden: boolean;
+}
+
+/** 换域完成后广播（须在存储与内存状态都已切到新域之后调用） */
+export function dispatchDomainChange(): void {
+    try {
+        window.dispatchEvent(new CustomEvent(DOMAIN_CHANGE_EVENT, {
+            detail: { hidden: isHiddenContentMode() } as DomainChangeDetail,
+        }));
+    } catch (e) {
+        // 没有 window / CustomEvent 的环境（单测、预渲染）忽略即可
+    }
+}
+
+/** 订阅换域事件，返回取消订阅函数 */
+export function onDomainChange(handler: (detail: DomainChangeDetail) => void): () => void {
+    const listener = function (event: Event): void {
+        const detail = (event as CustomEvent<DomainChangeDetail>).detail;
+        handler(detail || { hidden: isHiddenContentMode() });
+    };
+    try {
+        window.addEventListener(DOMAIN_CHANGE_EVENT, listener);
+    } catch (e) {
+        return function (): void { /* 没有 window：无需清理 */ };
+    }
+    return function (): void {
+        try {
+            window.removeEventListener(DOMAIN_CHANGE_EVENT, listener);
+        } catch (e) { /* 忽略 */ }
+    };
+}
+
 // ==================== API 站点配置 ====================
 // 内置源已全部迁到 Worker 的 D1（种子 JSON 见 workers/builtin-sources.json）。
 // 前端启动时按「Worker 缓存 → 本地导入源 → Worker 最新」的顺序合并，

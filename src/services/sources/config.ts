@@ -5,6 +5,7 @@
 // 这里保留 window getter/setter 代理，旧调用方零改动。
 import { API_SITES, selectedAPIs, setSelectedAPIs, customAPIs, setCustomAPIs, scopedKey, isHiddenContentMode, remoteDefaultKeys, remoteHiddenDefaultKeys } from '../../core/state';
 import type { CustomApiEntry } from '../../core/state';
+import { applyImportedSourcesFromCache } from './imported';
 
 export type { CustomApiEntry };
 
@@ -287,6 +288,32 @@ export function applyNewDataSourceLogic(): void {
             localStorage.setItem('lastRefreshTime', currentTime.toString());
         }
     }
+}
+
+// 换数据域后重读所有按域存放的源配置。
+// customAPIs 在本模块加载时只读过一次（模块级快照，见文件顶部），换域后不重读就会继续用
+// 旧域的自定义源；selectedAPIs 与 importedAPIs 同样按域隔离，这里一并按当前域重放一遍。
+// 调用时机：hiddenContentMode 已写成新值之后、广播换域事件之前。
+export function refreshScopedSources(): void {
+    try {
+        const raw = localStorage.getItem(scopedKey('customAPIs')) || '[]';
+        const parsed = JSON.parse(raw) as unknown;
+        apiConfigWindow.customAPIs = Array.isArray(parsed) ? parsed as CustomApiEntry[] : [];
+    } catch (e) {
+        console.error('读取自定义数据源失败:', e);
+        apiConfigWindow.customAPIs = [];
+    }
+    setCustomAPIs(apiConfigWindow.customAPIs || []);
+
+    // 导入源：两个域都合并进 API_SITES，重复调用幂等（同 URL 不会重复登记）
+    applyImportedSourcesFromCache();
+
+    // 内置源选择：按当前域重放默认源 / 已存选择
+    applyNewDataSourceLogic();
+
+    // 设置页片段在 DOM 中时立刻重画；不在设置页就是空操作
+    initAPICheckboxes();
+    renderCustomAPIsList();
 }
 
 // 刷新数据源

@@ -93,7 +93,7 @@ interface PickerState {
 
 interface ThemeWindow extends Window {
     LeLeThemeStore?: { KEYS: string[]; isKey: (key: string) => boolean };
-    LeLeThemeSystem?: { render: () => void };
+    LeLeThemeSystem?: { render: () => void; applyThemeForDomain: () => void };
     LeLeMotion?: { reduced: () => boolean };
     _themeRgbCache?: number[] | null;
 }
@@ -1172,7 +1172,21 @@ interface ThemeWindow extends Window {
         renderCard();
         bindGlobalEvents();
     }
-    themeWindow.LeLeThemeSystem = { render: renderForSettings };
+
+    /**
+     * 换域重放主题：按当前域的存档重读并立刻套用，不走溶合过渡。
+     * 换域的节奏是「熄灯 → 换数据 → 写招牌 → 开灯」，配色必须在开灯前就位，
+     * 否则灯一亮先看到旧域的颜色再跳一下。存档为空时清掉覆盖，回到 css 默认色。
+     */
+    function applyThemeForDomain(): void {
+        var theme = savedTheme();
+        if (theme) applyTheme(theme);
+        else clearPalette();
+        resetParticleThemeCache();
+        syncSelection();
+    }
+
+    themeWindow.LeLeThemeSystem = { render: renderForSettings, applyThemeForDomain: applyThemeForDomain };
 
     function init(): void {
         // 已保存过配色才写覆盖；否则保持 css 默认（正常霓虹夜场 / 私密铜色）

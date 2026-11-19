@@ -35,6 +35,17 @@ function _getCacheKey(apiId: string, query: string): string {
     return `${apiId}_${query.toLowerCase()}`;
 }
 
+/**
+ * 清空搜索缓存（关键词 + 分类两份）。
+ *
+ * 缓存键只有 apiId + 关键词/分类，不含数据域：换域后不清会把私密域的结果直接返回给
+ * 正常域（反之亦然），这是隐私泄漏而不是性能问题。所以换域时必须调用一次。
+ */
+export function clearSearchCaches(): void {
+    _searchCache.clear();
+    _categoryCache.clear();
+}
+
 function _getCachedResult(apiId: string, query: string): SearchResultItem[] | null {
     const key = _getCacheKey(apiId, query);
     const cached = _searchCache.get(key);

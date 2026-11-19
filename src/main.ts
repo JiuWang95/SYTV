@@ -69,7 +69,7 @@ interface MainWindow extends Window {
   INVITE_AUTH?: { isLocalMode: () => boolean; isVerified: () => boolean; ensureHeartbeat: () => void };
   showToast?: (message: string, type?: string) => void;
   LeLeLayout?: { refresh: () => void };
-  LeLeThemeSystem?: { render: () => void };
+  LeLeThemeSystem?: { render: () => void; applyThemeForDomain?: () => void };
   syncRemoteApiSites?: () => Promise<string[] | null | undefined>;
   LeLeTV?: LeLeTVAdapter;
 }
