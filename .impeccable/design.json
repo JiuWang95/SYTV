@@ -36,9 +36,13 @@
     ],
     "motion": [
       { "name": "ease-standard", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "所有状态过渡的默认缓动。" },
+      { "name": "ease-authored", "value": "cubic-bezier(0.22, 0.68, 0.28, 1)", "purpose": "一次性动效（书写、泛光、熄灯）的指数外衰减，先快后慢。" },
       { "name": "dur-fast", "value": "0.15s", "purpose": "按下与 transform。" },
       { "name": "dur-standard", "value": "0.24s", "purpose": "颜色、描边、背景过渡。" },
-      { "name": "dur-slow", "value": "0.45s–0.55s", "purpose": "启动屏合焦与淡出这类一次性入场。" }
+      { "name": "dur-slow", "value": "0.45s–0.55s", "purpose": "一次性入场的时长尺度（书写、换色溶合、熄灯）。" },
+      { "name": "cue-boot", "value": "250ms + 1250ms", "purpose": "开场：字标沿字形骨架一笔一笔写出来（9 段路径 + 笔尖），写完球面光释放一次。" },
+      { "name": "cue-domain-switch", "value": "420ms 熄灯 / 380ms 光 / 500ms 淡出", "purpose": "私密 ⇄ 正常换场：压暗收焦到黑、重载后由同一个字标把灯打开；不爆光（爆光只属于第一次开场）。" },
+      { "name": "cue-theme-morph", "value": "460ms + 420ms 泛光", "purpose": "换配色：27 个颜色变量从旧值插到新值，整页一起走过去；新色从被点的色盘泛出约 0.85 屏的泛光后散掉。变量写入按约 33fps 节流。" }
     ],
     "breakpoints": [
       { "name": "sm", "value": "641px" },
