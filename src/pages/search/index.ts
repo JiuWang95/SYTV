@@ -256,9 +256,9 @@ function bindSettingsPageEvents() {
             try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch (err) { /* 忽略 */ }
             // 动效期间锁住开关，避免重复触发切换
             (e.target as HTMLInputElement).disabled = true;
-            // 过渡动效：卡片粒子消散 → 重载后粒子汇聚生成新页面（期间不出现加载弹窗/闪屏）
-            if (typeof routerBridge.playParticleDissolve === 'function') {
-                routerBridge.playParticleDissolve(function () { window.location.reload(); });
+            // 过渡动效：熄灯换场（收焦压暗 → 重载）→ 重载后启动层直接开灯、内容淡入
+            if (typeof routerBridge.playDomainSwitch === 'function') {
+                routerBridge.playDomainSwitch(function () { window.location.reload(); });
             } else {
                 window.location.reload();
             }

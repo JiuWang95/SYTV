@@ -1472,8 +1472,20 @@ html[data-init-page="movies"] #page-movies {
     animation: none;
 }
 
-/* 数据域切换（私密 ⇄ 正常）的粒子过渡：切换后重新载入时先藏住设置页，由脚本在粒子动画后淡入；
-   脚本没跑起来时 1.6s 后自动显示，不会白屏 */
+/* 数据域切换（私密 ⇄ 正常）的熄灯换场：先压暗收焦到黑，重载后由启动层「开灯」接上；
+   幕布颜色与启动层底色同色，接缝处不跳色 */
+.domain-switch-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    pointer-events: auto;
+    background: var(--v2-bg, #0A0A0B);
+    opacity: 0;
+    transition: opacity 420ms cubic-bezier(0.4, 0, 1, 1);
+    will-change: opacity;
+}
+
+/* 数据域切换后重新载入时，首帧先由启动层遮住设置页；脚本没跑起来时 1.6s 后自动显示，不会白屏 */
 html[data-init-page="settings"]:not([data-domain-shown]) #page-settings,
 html[data-particle-in] #page-settings {
     opacity: 0;

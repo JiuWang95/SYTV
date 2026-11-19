@@ -328,6 +328,7 @@ function _resetPanel() {
 }
 
 // 重载前：卡片化作细密粒子向上飘散湮灭；动画结束或超时兜底后回调（用于触发 reload）
+// @deprecated 数据域切换已改用 playDomainSwitch（熄灯换场）；粒子消散只留给「删除」语义
 export function playParticleDissolve(onDone?: () => void): void {
   var finished = false;
   function finish() {
@@ -385,6 +386,59 @@ export function playParticleDissolve(onDone?: () => void): void {
       finish();
     }
   }, PARTICLE_SWEEP_MS + 900);
+}
+
+// 数据域切换（私密 ⇄ 正常）的离场：熄灯换场。
+// 粒子向上飘散在别处是「删除」的语义（删条目、清历史都走它），拿来做「换身份」会让人觉得页面被删了；
+// 这里改用放映厅的语言：画面收焦、压暗，重载后新场次开演（由启动层「开灯」接上）。
+// 与老实现的区别只在视觉，重载契约不变：写 PARTICLE_SWEEP_KEY、回调里 location.reload()。
+var SWITCH_OUT_MS = 420;           // 熄灯时长：短到不拖沓，长到看得见「暗下去」
+var SWITCH_OUT_BLUR = '6px';       // 收焦量：够看出「镜头在推」，又不至于糊成一团
+
+export function playDomainSwitch(onDone?: () => void): void {
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    if (typeof onDone === 'function') onDone();
+  }
+
+  // 要一起熄灯的是「整屏」：设置页内容 + 顶部导航。只糊一块会让另一半显得还亮着
+  var targets: HTMLElement[] = [];
+  var panel = _domainPanel();
+  if (panel) targets.push(panel);
+  var nav = document.querySelector('.top-nav-bar');
+  if (nav instanceof HTMLElement) targets.push(nav);
+
+  // 减少动效 / 找不到目标：直接重载，不做假动画
+  if (!targets.length || _particleReducedMotion()) { finish(); return; }
+
+  // 标记本次过渡：重载后启动层据此「跳过书写、直接开灯」
+  try { sessionStorage.setItem(PARTICLE_SWEEP_KEY, '1'); } catch (e) { /* 忽略 */ }
+
+  var easing = 'cubic-bezier(0.4, 0, 1, 1)';   // 刹车感：越暗越快
+  for (var i = 0; i < targets.length; i++) {
+    var el = targets[i];
+    el.style.transition =
+      'opacity ' + SWITCH_OUT_MS + 'ms ' + easing + ',' +
+      'filter ' + SWITCH_OUT_MS + 'ms ' + easing;
+    el.style.filter = 'blur(' + SWITCH_OUT_BLUR + ')';
+    el.style.opacity = '0.22';
+  }
+
+  // 幕布：与重载后启动层的底色同色，最后一帧到纯黑，接缝看不见
+  var veil = document.createElement('div');
+  veil.className = 'domain-switch-veil';
+  document.body.appendChild(veil);
+  void veil.offsetWidth;                        // 强制采纳 opacity:0，过渡才会真的发生
+  veil.style.opacity = '1';
+
+  setTimeout(finish, SWITCH_OUT_MS + 60);
+
+  // 兜底：标签页在后台时过渡事件可能不来，保证最终一定继续重载
+  setTimeout(function () {
+    if (!finished) { veil.style.transition = 'none'; veil.style.opacity = '1'; finish(); }
+  }, SWITCH_OUT_MS + 900);
 }
 
 // ===================== 通用：元素粒子消散（删除场景复用） =====================
@@ -1425,6 +1479,7 @@ export function shareInviteInfo(targetCode?: string) {
 Object.assign(window, {
   rememberPageForReload,
   playParticleDissolve,
+  playDomainSwitch,
   dissolveThenRemove,
   playHomeIntro,
   isCategoryPageBlocked,
@@ -1476,6 +1531,7 @@ declare global {
     shareInviteInfo: (targetCode?: string) => void;
     rememberPageForReload: (page: string) => void;
     playParticleDissolve: (onDone?: () => void) => void;
+    playDomainSwitch: (onDone?: () => void) => void;
     clearSearchResidueFromUrl: (targetPage?: string) => void;
     dissolveThenRemove: (el: Element, action: () => void) => void;
     parseChangelogMarkdown: (md: string) => string;

@@ -63,7 +63,7 @@
     <link rel="modulepreload" href="dist/chunks/chunk-C7ZP77W2.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-GTCVV5L2.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-DWOYCZYJ.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/leletv-app.6QBBVRB3.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/leletv-app.KXUALV7Y.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-IIEDFRDF.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-DQFWEQJD.js?v=v4.2.6">
 
@@ -891,16 +891,26 @@
             ensureGate();
             completeScan();
             if (loadingEl) loadingEl.classList.remove('is-visible');
-            splash.classList.add('is-burst');
-            setTimeout(function () { splash.classList.add('is-land'); }, 160);
-            setTimeout(function () { splash.classList.add('boot-splash--done'); }, 420);
-            setTimeout(function () {
+
+            function removeSplash() {
                 if (splash.parentNode) splash.parentNode.removeChild(splash);
                 // 启动屏完全退场、首页已可见：这时才开始后台预加载其他页面
                 if (window.LeLeBoot && typeof window.LeLeBoot.onEntered === 'function') {
                     window.LeLeBoot.onEntered();
                 }
-            }, 1000);
+            }
+
+            if (fromDomainSwitch) {
+                // 换场回来：字标不爆开（爆开是「开场」的动作），整层直接淡出，把灯交还给页面
+                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 120);
+                setTimeout(removeSplash, 760);
+                return;
+            }
+
+            splash.classList.add('is-burst');
+            setTimeout(function () { splash.classList.add('is-land'); }, 160);
+            setTimeout(function () { splash.classList.add('boot-splash--done'); }, 420);
+            setTimeout(removeSplash, 1000);
         }
 
         // 三闸门：入场动画落地 + 交互就绪 + 鉴权通过 + 首页就绪；谁慢等谁
@@ -1010,6 +1020,13 @@
             // 减少动效：不描边，字标直接清晰显示，只保留进度与退场
             completeScan();
             if (loadingEl) loadingEl.classList.add('is-visible');
+        } else if (fromDomainSwitch) {
+            // 数据域换场回来：不重写一遍字，直接开灯（球面光 + 内容淡入），
+            // 整段切换才压得住 1s 出头；进度读数也不露，免得只闪一帧。
+            // 延一帧再点灯：让「暗场」先被看见，光才有升起来的余地
+            requestAnimationFrame(function () {
+                setTimeout(function () { if (!released) completeScan(); }, 70);
+            });
         } else {
             splash.classList.add('is-tracing');
             setTimeout(function () {
@@ -1272,7 +1289,7 @@
     </script>
 
     <script type="module" src="dist/leletv-core.5VEBPEOQ.js?v=v4.2.6"></script>
-    <script type="module" src="dist/leletv-app.6QBBVRB3.js?v=v4.2.6"></script>
+    <script type="module" src="dist/leletv-app.KXUALV7Y.js?v=v4.2.6"></script>
 
     <!-- 环境变量注入脚本 -->
     <script>
