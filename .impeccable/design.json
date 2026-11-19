@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T11:20:00+08:00",
+  "title": "Design System: LeLeTV",
+  "extensions": {
+    "colorMeta": {
+      "hall-black": { "role": "neutral", "displayName": "熄灯后的厅", "canonical": "#0A0A0B", "purpose": "页面底色，永不使用纯黑。" },
+      "hall-raised": { "role": "neutral", "displayName": "抬升的厅", "canonical": "#111114", "purpose": "输入框与一级卡片的底色。" },
+      "screen-surface": { "role": "neutral", "displayName": "银幕表面", "canonical": "#16161A", "purpose": "卡片与面板的第一档抬升。" },
+      "screen-surface-2": { "role": "neutral", "displayName": "银幕表面·二", "canonical": "#1D1D22", "purpose": "悬浮层与次级面板。" },
+      "screen-surface-3": { "role": "neutral", "displayName": "银幕表面·三", "canonical": "#25252B", "purpose": "最高一档抬升，chip 与选中底色。" },
+      "neon-pink": { "role": "primary", "displayName": "霓虹灯管粉", "canonical": "#EC4899", "purpose": "唯一强调色：主按钮、focus 环、进度、选中态、logo 图形。" },
+      "neon-pink-high": { "role": "primary", "displayName": "霓虹灯管粉·亮", "canonical": "#F472B6", "purpose": "悬停与渐变亮端。" },
+      "neon-pink-low": { "role": "primary", "displayName": "霓虹灯管粉·暗", "canonical": "#DB2777", "purpose": "按下与渐变暗端。" },
+      "curtain-sakura": { "role": "primary", "displayName": "纱幕樱花白", "canonical": "#FFE4F1", "purpose": "同一束光的高光：渐变字顶端、聚合区光芯、导航字标。" },
+      "text-primary": { "role": "neutral", "displayName": "正文白", "canonical": "#F5F5F7", "purpose": "主文案，最亮只到这里。" },
+      "text-secondary": { "role": "neutral", "displayName": "次要灰", "canonical": "#A8A8B3", "purpose": "说明、标签、非关键信息。" },
+      "text-tertiary": { "role": "neutral", "displayName": "辅助灰", "canonical": "#86868F", "purpose": "元信息；在底色上约 5.4:1。" },
+      "status-ok": { "role": "neutral", "displayName": "可用绿", "canonical": "#62C28E", "purpose": "仅用于 6px 状态点。" },
+      "status-warn": { "role": "neutral", "displayName": "告警黄", "canonical": "#D8A657", "purpose": "仅用于 6px 状态点。" },
+      "status-bad": { "role": "neutral", "displayName": "失败红", "canonical": "#D9716B", "purpose": "仅用于 6px 状态点与错误描边。" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "首屏与页面主标题，一屏一次。" },
+      "headline": { "displayName": "Headline", "purpose": "分区标题。" },
+      "title": { "displayName": "Title", "purpose": "卡片与面板标题。" },
+      "body": { "displayName": "Body", "purpose": "正文与描述，65–75ch。" },
+      "label": { "displayName": "Label", "purpose": "表单标签、元信息、状态文字。" },
+      "mono": { "displayName": "Mono", "purpose": "邀请码、设备指纹这类需要逐字读的字符串。" }
+    },
+    "shadows": [
+      { "name": "panel-lift", "value": "0 40px 80px -32px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04)", "purpose": "模态与抽屉浮起，永远和 1px 描边一起用。" },
+      { "name": "glass-top-light", "value": "inset 0 0.5px 0 rgba(255,255,255,0.28)", "purpose": "玻璃按钮的顶边高光，属于材质而不是阴影。" },
+      { "name": "focus-glow", "value": "0 0 0 4px rgba(236,72,153,0.14)", "purpose": "输入框与按钮聚焦，全系统唯一允许的彩色光晕。" },
+      { "name": "accent-action", "value": "0 12px 32px -12px rgba(236,72,153,0.55), inset 0 1px 0 rgba(255,255,255,0.06)", "purpose": "极少数主行动按钮（首页搜索），不是通用按钮样式。" }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "所有状态过渡的默认缓动。" },
+      { "name": "dur-fast", "value": "0.15s", "purpose": "按下与 transform。" },
+      { "name": "dur-standard", "value": "0.24s", "purpose": "颜色、描边、背景过渡。" },
+      { "name": "dur-slow", "value": "0.45s–0.55s", "purpose": "启动屏合焦与淡出这类一次性入场。" }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "641px" },
+      { "name": "md", "value": "721px" },
+      { "name": "lg", "value": "861px" },
+      { "name": "xl", "value": "1024px" },
+      { "name": "2xl", "value": "1101px" },
+      { "name": "tv", "value": "1600px" },
+      { "name": "ultrawide", "value": "2400px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主色清玻璃按钮：半透明主色 + 发丝边 + 顶边高光，用于页面的主行动。",
+      "html": "<button class=\"ds-btn ds-btn--primary\" type=\"button\">开始播放</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 18px; border: 0.5px solid transparent; border-radius: 12px; font-family: Geist, -apple-system, PingFang SC, Microsoft YaHei, sans-serif; font-size: 15px; font-weight: 600; line-height: 1; letter-spacing: 0.01em; cursor: pointer; transition: transform .15s cubic-bezier(.22,1,.36,1), background-color .24s cubic-bezier(.22,1,.36,1), border-color .24s cubic-bezier(.22,1,.36,1); } .ds-btn:active { transform: translateY(1px) scale(.985); } .ds-btn--primary { color: #fff; border-color: rgba(236,72,153,.55); background: linear-gradient(180deg, rgba(236,72,153,.36), rgba(236,72,153,.22)); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); box-shadow: inset 0 0.5px 0 rgba(255,255,255,.28); } .ds-btn--primary:hover { border-color: rgba(236,72,153,.68); background: linear-gradient(180deg, rgba(236,72,153,.46), rgba(236,72,153,.3)); } .ds-btn--primary:focus-visible { outline: none; box-shadow: inset 0 0.5px 0 rgba(255,255,255,.28), 0 0 0 4px rgba(236,72,153,.14); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "无色清玻璃按钮，用于与主行动并列的次操作。",
+      "html": "<button class=\"ds-btn ds-btn--secondary\" type=\"button\">加入收藏</button>",
+      "css": ".ds-btn--secondary { color: #F5F5F7; border-color: rgba(255,255,255,.18); background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.04)); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); box-shadow: inset 0 0.5px 0 rgba(255,255,255,.14); } .ds-btn--secondary:hover { border-color: rgba(255,255,255,.28); background: linear-gradient(180deg, rgba(255,255,255,.1), rgba(255,255,255,.06)); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "表单输入：发丝边 + 3.5% 白底，聚焦时换主色描边并加 4px 光晕。",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"例如：客厅电视\" aria-label=\"设备名称\" />",
+      "css": ".ds-input { width: 100%; box-sizing: border-box; height: 46px; padding: 0 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(255,255,255,.035); color: #F5F5F7; font-family: Geist, -apple-system, PingFang SC, Microsoft YaHei, sans-serif; font-size: 15px; outline: none; transition: border-color .24s cubic-bezier(.22,1,.36,1), box-shadow .24s cubic-bezier(.22,1,.36,1), background-color .24s cubic-bezier(.22,1,.36,1); } .ds-input::placeholder { color: #6B6B74; } .ds-input:hover { border-color: rgba(255,255,255,.2); } .ds-input:focus { border-color: rgba(236,72,153,.6); background: rgba(255,255,255,.05); box-shadow: 0 0 0 4px rgba(236,72,153,.14); } .ds-input[aria-invalid=\"true\"] { border-color: rgba(217,113,107,.7); }"
+    },
+    {
+      "name": "Glass Wordmark",
+      "kind": "custom",
+      "description": "品牌签名件：单条路径两次镜面边缘光 + 对角 sheen + 1px 白轮廓。首页 hero 与启动屏共用同一份滤镜。",
+      "html": "<svg class=\"ds-wordmark\" viewBox=\"128 146 780 228\" role=\"img\" aria-label=\"LeLeTV\"><use href=\"#lele-word\"/></svg>",
+      "css": ".ds-wordmark { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 18px 54px rgba(236,72,153,.16)); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "开场前的放映厅",
+    "overview": "灯已经暗下来，片子还没开始。整个界面就是这个状态：黑是熄灯后的黑，不是纯黑；光只有一束，是放映机的光，也就是主色；玻璃是幕布前那块会反光的东西——字标、主按钮、搜索框都从同一块玻璃上切下来。界面越安静，那一束光才越像光。主题包的名字都不是配色名，是放映场所：换主题 = 换一个厅。",
+    "keyCharacteristics": [
+      "一个强调色，其余靠五级灰阶",
+      "平贴为主：靠描边与抬升面色分层，只有面板与浮层浮起",
+      "玻璃只出现在光会打上去的地方（字标 / 主按钮 / 搜索框）",
+      "圆角内小外大（6 → 28px）",
+      "字体只有 Geist 一家，层级靠字号与字重（500 / 600 为主力）"
+    ],
+    "rules": [
+      { "name": "The One Light Rule", "body": "一屏之内，强调色覆盖的面积不超过 10%。它的稀有就是它的力量；第二处强调色永远不加。", "section": "colors" },
+      { "name": "The Cold Grey Rule", "body": "灰阶统一带一点冷紫，不用中性灰，也不用纯白。", "section": "colors" },
+      { "name": "The No-Kicker Rule", "body": "标题上方不加小标签或眉题，标题自己承载信息。", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "静止状态不投影。投影只响应「浮起来」这件事，不做装饰性发光。", "section": "elevation" },
+      { "name": "The Hairline Rule", "body": "需要分层时先加 0.5–1px 发丝边，再换面色，最后才考虑投影。", "section": "elevation" }
+    ],
+    "dos": [
+      "Do 用五级灰阶 + 三档发丝边表达层级，先加线再换面。",
+      "Do 让强调色保持稀有（≤10% 面积），一屏只有一束光。",
+      "Do 玻璃只用在光会打上去的地方：字标、主按钮、搜索框。",
+      "Do 触控目标 ≥44px，深色底上正文对比度 ≥4.5:1。"
+    ],
+    "donts": [
+      "Don't 加第二处强调色，也不要给强调色加发光投影。",
+      "Don't 给静止元素加投影，或用「1px 边框 + 大柔光」的幽灵卡片组合。",
+      "Don't 新增渐变文字；强调靠字重与字号（现存 hero 渐变字标是既有例外）。",
+      "Don't 卡片套卡片，或把同尺寸的「图标 + 标题 + 一段字」当成页面结构。",
+      "Don't 用纯黑或中性灰，灰阶永远带一点冷紫。"
+    ]
+  }
+}
