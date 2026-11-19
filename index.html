@@ -337,7 +337,8 @@
            它在流内并垫在最下面，上面的清晰稿靠遮罩一笔一笔揭开 */
         .boot-word--dim {
             position: relative;
-            filter: blur(8px);
+            /* 模糊量跟着字标宽度走：手机上字标只有约 350px，固定 8px 会把字糊成一团 */
+            filter: blur(clamp(4px, 1.15vw, 8px));
             opacity: 0.7;
             transition: opacity 0.45s ease;
         }
@@ -347,6 +348,26 @@
             position: absolute;
             inset: 0;
         }
+
+        /* 墨迹：沿笔迹中心线的粗描边，宽度略大于笔画厚度。
+           它只出现在 #bootWordReveal 遮罩里，遮罩又是加在字形自身上，所以涂到字外也不会露出来 */
+        .boot-ink {
+            fill: none;
+            stroke: #FFFFFF;
+            stroke-width: 92;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* 笔尖：一小颗会发光的光点，位置由脚本每帧算 */
+        .boot-nib-dot {
+            fill: #FFFFFF;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95))
+                    drop-shadow(0 0 16px rgba(var(--v2-accent-rgb, 236, 72, 153), 0.9));
+        }
+        #bootSplash.is-tracing .boot-nib-dot { opacity: 1; }
 
         /* 描边光：一条沿字形轮廓游走的细光，代替竖直扫描带 ——
            光的路径就是字标自己的笔画，不是横穿画面的一条线。
@@ -559,10 +580,27 @@
                     <filter id="bootRevealSoft" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
                         <feGaussianBlur stdDeviation="9"></feGaussianBlur>
                     </filter>
+                    <path id="bootS0" transform="translate(-506.6 -77.6)" fill="none" d="M762.1 255.1L716.6 322.1L680.6 380.1L676.1 389.6L672.1 408.1L672.1 411.6L676.6 421.6L680.6 424.1L687.1 424.1L713.1 420.6L735.6 413.6L753.1 406.6L764.1 405.1L773.1 397.1L779.1 399.6L783.6 412.6L785.6 414.6L792.6 418.1L801.6 420.1L818.6 419.6L832.1 417.1L845.6 412.6L870.6 399.6L876.6 398.1L891.6 396.1L898.1 400.6"></path>
+                    <path id="bootS1" transform="translate(-506.6 -77.6)" fill="none" d="M811.6 338.1L797.1 346.6L789.6 353.1L783.1 361.1L779.1 370.6L773.6 396.6"></path>
+                    <path id="bootS2" transform="translate(-506.6 -77.6)" fill="none" d="M784.1 392.6L784.6 392.1L806.1 389.1L812.1 386.6L827.1 377.6L836.6 369.1L841.6 361.6L845.6 345.1L842.1 337.6L838.6 335.6L832.6 334.6"></path>
+                    <path id="bootS3" transform="translate(-506.6 -77.6)" fill="none" d="M980.6 254.1L968.1 270.6L940.6 313.1L922.1 343.6L905.1 375.1L901.6 383.1L898.6 399.6L901.1 415.1L904.1 419.6L911.1 422.6L936.1 419.1L970.6 406.6L981.1 405.1L989.1 397.6L995.6 399.6L1000.1 413.1L1008.1 418.1L1021.1 420.6L1050.6 418.1L1073.1 411.1L1100.1 399.1L1127.6 383.6L1146.1 370.1L1171.6 363.6L1168.6 391.1L1161.6 415.6L1158.6 422.1"></path>
+                    <path id="bootS4" transform="translate(-506.6 -77.6)" fill="none" d="M1024.1 340.1L1009.6 349.1L998.1 361.6L995.6 366.6L992.1 380.1L989.6 397.1"></path>
+                    <path id="bootS5" transform="translate(-506.6 -77.6)" fill="none" d="M1001.1 393.1L1001.6 392.6L1025.6 387.6L1043.6 377.6L1053.6 368.6L1058.6 357.1L1061.1 345.6L1059.1 340.6L1055.1 337.1L1051.1 335.6L1045.1 335.6"></path>
+                    <path id="bootS6" transform="translate(-506.6 -77.6)" fill="none" d="M1192.1 300.6L1190.1 298.6L1184.1 298.6L1164.1 300.6L1136.6 307.1L1125.6 311.6"></path>
+                    <path id="bootS7" transform="translate(-506.6 -77.6)" fill="none" d="M1279.1 284.6L1239.6 287.1L1204.1 292.6L1197.1 296.1L1192.6 300.1L1191.6 302.6L1188.6 327.1L1183.6 342.6L1172.1 363.1"></path>
+                    <path id="bootS8" transform="translate(-506.6 -77.6)" fill="none" d="M1385.6 284.1L1377.1 291.6L1339.6 335.1L1309.1 374.1L1288.6 403.1L1286.6 405.1L1274.6 409.6L1266.6 412.1L1260.6 408.6L1255.6 347.1L1252.6 332.6"></path>
                     <mask id="bootWordReveal" maskUnits="userSpaceOnUse" x="96" y="112" width="848" height="296">
-                        <use id="bootRevealStroke" href="#bootWordPath" fill="none" stroke="#FFFFFF"
-                             stroke-width="220" stroke-linecap="round" stroke-linejoin="round"
-                             filter="url(#bootRevealSoft)"></use>
+                        <g filter="url(#bootRevealSoft)">
+                        <use class="boot-ink" href="#bootS0"></use>
+                        <use class="boot-ink" href="#bootS1"></use>
+                        <use class="boot-ink" href="#bootS2"></use>
+                        <use class="boot-ink" href="#bootS3"></use>
+                        <use class="boot-ink" href="#bootS4"></use>
+                        <use class="boot-ink" href="#bootS5"></use>
+                        <use class="boot-ink" href="#bootS6"></use>
+                        <use class="boot-ink" href="#bootS7"></use>
+                        <use class="boot-ink" href="#bootS8"></use>
+                        </g>
                     </mask>
                 </defs>
                 <g mask="url(#bootWordReveal)">
@@ -574,8 +612,18 @@
             </svg>
 
             <!-- 描边光：单独一层，沿字形轮廓走一笔（虚线长度由脚本按 path 长度设置） -->
+            <!-- 笔尖：沿字标自己的笔迹走，写到哪里玻璃就在哪里浮现 -->
             <svg class="boot-word boot-word--trace-layer" viewBox="128 146 780 228" aria-hidden="true">
-                <use class="boot-word--trace" id="bootWordTrace" href="#bootWordPath"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS0"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS1"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS2"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS3"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS4"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS5"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS6"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS7"></use>
+                <use class="boot-word--trace boot-nib" href="#bootS8"></use>
+                <circle class="boot-nib-dot" id="bootNibDot" cx="0" cy="0" r="6.5" transform="translate(-506.6 -77.6)"></circle>
             </svg>
         </div>
 
@@ -723,40 +771,92 @@
             }
         }
 
-        // ---------- 描边入场 ----------
-        // 一条细光沿字标轮廓从第一笔走到最后一笔，光走过的位置玻璃填色才浮现：
-        // 边界不是一条直线，而是字形自己的边缘。
-        var SCAN_MS = 980;
+        // ---------- 按笔画书写入场 ----------
+        // 9 段笔迹（从字形骨架里量出来的中心线，见 #bootS0..#bootS8）按写字顺序连成一条笔路：
+        // L → 第一个 e → l → 第二个 e → T 的横 → T 的竖 → V。
+        // 笔尖走一段、玻璃就在这一段下面浮现；每段时长按长度分配，不是平均分。
+        var SCAN_MS = 1250;
         var TOTAL_MS = SCAN_MS + 260;
         var scanStart = 0;
         var scanDone = false;
+        var NIB_LEN = 26;      // 笔尖亮线的长度（路径单位）
+        var NIB_LAG = 45;      // 墨迹落后笔尖多少，才有“笔先到、墨随后”的感觉
+        var srcPaths = [];     // #bootS0..#bootS8 的引用，用来取笔尖坐标
+        var nibDot = document.getElementById('bootNibDot');
 
-        // 描边长度只在启动时量一次；量不到（极老的浏览器）就退化成整字直接显示
-        var traceLen = 0;
+        // 每段笔迹的长度只在启动时量一次；量不到就退化成整字直接显示
+        var strokeLens = [];
+        var strokeTotal = 0;
         function setupTrace() {
-            try {
-                traceLen = wordPath && wordPath.getTotalLength ? wordPath.getTotalLength() : 0;
-            } catch (e) { traceLen = 0; }
-            if (traceLen > 0) {
-                var dashes = [wordTrace, wordReveal];
-                for (var i = 0; i < dashes.length; i++) {
-                    if (!dashes[i]) continue;
-                    dashes[i].style.strokeDasharray = traceLen.toFixed(1);
-                    dashes[i].style.strokeDashoffset = traceLen.toFixed(1);
+            var srcs = [], inks = [], nibs = [];
+            for (var i = 0; i < 32; i++) {
+                var p = document.getElementById('bootS' + i);
+                if (!p) break;
+                srcs.push(p);
+            }
+            srcPaths = srcs;
+            var allInk = splash.getElementsByClassName('boot-ink');
+            var allNib = splash.getElementsByClassName('boot-nib');
+            for (var j = 0; j < allInk.length; j++) inks.push(allInk[j]);
+            for (var m = 0; m < allNib.length; m++) nibs.push(allNib[m]);
+            strokeLens = [];
+            strokeTotal = 0;
+            for (var n = 0; n < srcs.length; n++) {
+                var len = 0;
+                try { len = srcs[n].getTotalLength ? srcs[n].getTotalLength() : 0; } catch (e) { len = 0; }
+                strokeLens.push(len);
+                strokeTotal += len;
+            }
+            if (strokeTotal <= 0) {
+                for (var q = 0; q < nibs.length; q++) nibs[q].style.display = 'none';
+                return;
+            }
+            for (var s = 0; s < strokeLens.length; s++) {
+                var L = strokeLens[s];
+                if (inks[s]) {
+                    inks[s].style.strokeDasharray = L.toFixed(1) + ' ' + (L * 2 + 40).toFixed(1);
+                    inks[s].style.strokeDashoffset = L.toFixed(1);
                 }
-            } else if (wordTrace) {
-                wordTrace.style.display = 'none';
+                if (nibs[s]) {
+                    nibs[s].style.strokeDasharray = NIB_LEN + ' ' + (L + NIB_LEN).toFixed(1);
+                    nibs[s].style.strokeDashoffset = NIB_LEN;
+                }
             }
         }
 
-        // 光沿字形轮廓走一笔，玻璃跟着在光后面填起来：遮罩里的粗描边与可见细光同一条虚线，
-        // 所以“变清楚”的边界始终贴着光在走
+        // 按进度把「已写长度」分配到各段：笔尖在前，墨迹随后
         function renderTrace(k) {
             var eased = easeInOutQuad(clamp01(k));
-            if (traceLen > 0) {
-                var offset = (traceLen * (1 - eased)).toFixed(1);
-                if (wordTrace) wordTrace.style.strokeDashoffset = offset;
-                if (wordReveal) wordReveal.style.strokeDashoffset = offset;
+            if (strokeTotal <= 0) {
+                if (wordDim) wordDim.style.opacity = '0';
+                return;
+            }
+            var written = eased * strokeTotal;
+            var acc = 0;
+            var dotIdx = -1;
+            var dotPos = 0;
+            var allInk = splash.getElementsByClassName('boot-ink');
+            var allNib = splash.getElementsByClassName('boot-nib');
+            for (var i = 0; i < strokeLens.length; i++) {
+                var L = strokeLens[i];
+                var local = Math.max(0, Math.min(L, written - acc));
+                var ink = Math.max(0, Math.min(L, local - NIB_LAG));
+                var inkEl = allInk[i], nibEl = allNib[i];
+                if (inkEl) inkEl.style.strokeDashoffset = (L - ink).toFixed(1);
+                if (nibEl) {
+                    if (local >= L) {
+                        nibEl.style.strokeDashoffset = (-(L - NIB_LEN)).toFixed(1);
+                    } else {
+                        nibEl.style.strokeDashoffset = (-(local - NIB_LEN)).toFixed(1);
+                    }
+                }
+                if (local > 0) { dotIdx = i; dotPos = Math.min(local, L); }
+                acc += L;
+            }
+            if (nibDot && dotIdx >= 0 && srcPaths[dotIdx] && srcPaths[dotIdx].getPointAtLength) {
+                var pt = srcPaths[dotIdx].getPointAtLength(dotPos);
+                nibDot.setAttribute('cx', pt.x.toFixed(1));
+                nibDot.setAttribute('cy', pt.y.toFixed(1));
             }
             if (wordDim) wordDim.style.opacity = (DIM_OPACITY * (1 - eased * eased)).toFixed(3);
         }
