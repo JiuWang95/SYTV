@@ -892,9 +892,10 @@
             }
 
             if (fromDomainSwitch) {
-                // 换场回来：字标不爆开（爆开是「开场」的动作），整层直接淡出，把灯交还给页面
-                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 120);
-                setTimeout(removeSplash, 760);
+                // 换场回来：字标不爆开——爆开是「首次开场」的动作，换场只是把同一块招牌重写一遍，
+                // 写完让球面光走完再淡出，把灯交还给页面
+                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 380);
+                setTimeout(removeSplash, 1000);
                 return;
             }
 
@@ -1011,18 +1012,15 @@
             // 减少动效：不描边，字标直接清晰显示，只保留进度与退场
             completeScan();
             if (loadingEl) loadingEl.classList.add('is-visible');
-        } else if (fromDomainSwitch) {
-            // 数据域换场回来：不重写一遍字，直接开灯（球面光 + 内容淡入），
-            // 整段切换才压得住 1s 出头；进度读数也不露，免得只闪一帧。
-            // 延一帧再点灯：让「暗场」先被看见，光才有升起来的余地
-            requestAnimationFrame(function () {
-                setTimeout(function () { if (!released) completeScan(); }, 70);
-            });
         } else {
             splash.classList.add('is-tracing');
-            setTimeout(function () {
-                if (!released && loadingEl) loadingEl.classList.add('is-visible');
-            }, 300);
+            // 换场回来不再重复报一遍加载进度：页面本来就是从上一个域重载的，
+            // 读数只会让人以为又要重新加载；字标照样一笔一笔写出来
+            if (!fromDomainSwitch) {
+                setTimeout(function () {
+                    if (!released && loadingEl) loadingEl.classList.add('is-visible');
+                }, 300);
+            }
         }
 
         // 动画时长兜底：后台标签页会暂停 rAF，不能让「入场完成」这一信号一直等不到
