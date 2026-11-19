@@ -227,13 +227,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 22px;
+            gap: 26px;
             background:
                 radial-gradient(64% 52% at 20% 12%, rgba(var(--v2-aux-rgb, 255, 228, 241), 0.12), transparent 62%),
                 radial-gradient(72% 62% at 82% 86%, rgba(var(--v2-accent-rgb, 236, 72, 153), 0.2), transparent 66%),
                 var(--v2-bg, #0A0A0B);
             opacity: 1;
             visibility: visible;
+            /* 启动层是整页的临时占位：不让误选中、不出现文本光标 */
+            user-select: none;
             transition: opacity 0.5s ease 0.1s, visibility 0.5s;
         }
         #bootSplash.boot-splash--done {
@@ -299,11 +301,12 @@
             to   { transform: translate3d(-4%, -3%, 0) scale(1); }
         }
 
-        /* 字标舞台：清晰稿在流内，失焦稿叠在上面，描边光再叠一层 */
+        /* 字标舞台：清晰稿在流内，失焦稿叠在上面，描边光再叠一层。
+           大屏（电视 / 2K）上按视口比例放大，小屏仍受 90vw 约束 */
         .boot-word-stack {
             position: relative;
             z-index: 2;
-            width: min(90vw, 720px);
+            width: min(90vw, clamp(600px, 50vw, 880px));
             transition: opacity 0.34s ease, transform 0.34s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .boot-word {
@@ -321,11 +324,12 @@
             filter: none;
         }
         /* 失焦稿：真实模糊，而不是降低不透明度 —— 合焦时才有“变清楚”的对比。
+           首帧就要“认得出是 LeLeTV，只是没对上焦”，所以保持可读、不压到看不见。
            它在流内并垫在最下面，上面的清晰稿靠遮罩一笔一笔揭开 */
         .boot-word--dim {
             position: relative;
-            filter: blur(9px);
-            opacity: 0.6;
+            filter: blur(8px);
+            opacity: 0.7;
             transition: opacity 0.45s ease;
         }
         #bootSplash.is-lit .boot-word--dim { opacity: 0; }
@@ -374,14 +378,15 @@
         }
 
         /* 读数：一条真实进度线 + 阶段文案 + 百分比。
-           百分比用等宽数字（tabular-nums），是这里唯一“技术感”的正当来源：它在测量。 */
+           宽度与字标同宽 —— 这条细线量的就是整个字标，不是浮在下面的一块小部件。
+           百分比用等宽数字：它在测量，是这里唯一“技术感”的正当来源 */
         .boot-loading {
             position: relative;
             z-index: 3;
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            width: min(70vw, 300px);
+            gap: 11px;
+            width: min(90vw, clamp(600px, 50vw, 880px));
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.45s ease 0.2s;
@@ -411,14 +416,22 @@
             font-size: 13px;
             line-height: 1;
             letter-spacing: 0.06em;
-            color: rgba(255, 255, 255, 0.62);
+            color: rgba(255, 255, 255, 0.66);
         }
         .boot-loading-pct {
-            font-size: 15px;
+            font-size: 13px;
+            font-weight: 500;
             line-height: 1;
             letter-spacing: 0.08em;
             font-variant-numeric: tabular-nums;
-            color: rgba(255, 255, 255, 0.56);
+            color: rgba(255, 255, 255, 0.48);
+        }
+
+        /* 电视 / 大屏：同一套读数，笔画与字号各加一档，2–3 米外仍读得出 */
+        @media (min-width: 1600px) {
+            .boot-loading-track { height: 2px; }
+            .boot-loading-text,
+            .boot-loading-pct { font-size: 14px; }
         }
 
         /* 退场：字标轻微放大并淡出，读数先撤，背景色随后铺满 */
@@ -465,6 +478,10 @@
             background: rgba(255, 255, 255, 0.14);
             border-color: rgba(255, 255, 255, 0.6);
         }
+        .boot-splash-hint-btn:focus-visible {
+            outline: 2px solid rgba(var(--v2-accent-rgb, 236, 72, 153), 0.95);
+            outline-offset: 3px;
+        }
 
         /* 减弱动效：不描边、不漂移，字标直接清晰显示 */
         @media (prefers-reduced-motion: reduce) {
@@ -481,7 +498,7 @@
          玻璃填色才真正浮现出来；随后粉色球面光释放、底色铺满。
          字标下方是真实加载进度、阶段文案与百分比。
          样式内联在 head，不依赖外部 CSS / JS / 字体到达 -->
-    <div id="bootSplash" aria-hidden="true">
+    <div id="bootSplash">
         <div class="boot-ambient" aria-hidden="true"><i class="a"></i><i class="b"></i></div>
         <div class="boot-bloom" aria-hidden="true"></div>
 
@@ -528,10 +545,15 @@
             <!-- 清晰稿：整层常亮，用一层“粗描边遮罩”沿轮廓一笔一笔揭开 -->
             <svg class="boot-word boot-word--sharp" id="bootWordSharp" viewBox="128 146 780 228" aria-hidden="true">
                 <defs>
-                    <!-- 揭开用的粗描边：宽度要略大于笔画厚度，光走过一个字母时它整字就填好 -->
+                    <!-- 揭开用的粗描边：宽度要略大于笔画厚度，光走过一个字母时它整字就填好。
+                         边缘再柔化一次，让「正在揭开的那一笔」是一段渐显的坡，而不是一道硬切边 -->
+                    <filter id="bootRevealSoft" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+                        <feGaussianBlur stdDeviation="9"></feGaussianBlur>
+                    </filter>
                     <mask id="bootWordReveal" maskUnits="userSpaceOnUse" x="96" y="112" width="848" height="296">
                         <use id="bootRevealStroke" href="#bootWordPath" fill="none" stroke="#FFFFFF"
-                             stroke-width="220" stroke-linecap="round" stroke-linejoin="round"></use>
+                             stroke-width="220" stroke-linecap="round" stroke-linejoin="round"
+                             filter="url(#bootRevealSoft)"></use>
                     </mask>
                 </defs>
                 <g mask="url(#bootWordReveal)">
@@ -548,7 +570,7 @@
             </svg>
         </div>
 
-        <div class="boot-loading" id="bootLoading">
+        <div class="boot-loading" id="bootLoading" role="status" aria-live="polite" aria-atomic="true">
             <span class="boot-loading-track"><i class="boot-loading-bar" id="bootLoadingBar"></i></span>
             <span class="boot-loading-row">
                 <span class="boot-loading-text" id="bootLoadingText">正在准备…</span>
@@ -594,6 +616,9 @@
         }
         // 对焦光带匀速扫过会像进度条；两端各收一点、中段略快，才是一次「推扫合焦」
         function easeInOutQuad(v) { return v < 0.5 ? 2 * v * v : 1 - Math.pow(-2 * v + 2, 2) / 2; }
+
+        // 首帧失焦稿的浓度：要「一眼认出是 LeLeTV，只是没对上焦」，不能淡到像没画
+        var DIM_OPACITY = 0.7;
 
         // ---------- 加载进度 ----------
         // 阶段由 src/boot.ts 推进，这里只负责画：
@@ -724,7 +749,7 @@
                 if (wordTrace) wordTrace.style.strokeDashoffset = offset;
                 if (wordReveal) wordReveal.style.strokeDashoffset = offset;
             }
-            if (wordDim) wordDim.style.opacity = (0.6 * (1 - eased * eased)).toFixed(3);
+            if (wordDim) wordDim.style.opacity = (DIM_OPACITY * (1 - eased * eased)).toFixed(3);
         }
 
         function completeScan() {
