@@ -220,8 +220,9 @@
         /* 底色兜底：样式表（src/styles/variables.css 的 --v2-bg）还在路上时，html/body 的默认背景是白色，
            解析过程中的任何一次重绘都会露出白。先写死深色底，让第一次绘制就是启动层的基底 */
         html, body { background: #0A0A0B; }
-        /* 占位期间页面尚未样式化，先按住滚动，避免出现临时滚动条；元素移除后规则自动失效 */
-        html:has(#bootSplash) { overflow: hidden; }
+        /* 占位期间页面尚未样式化，先按住滚动，避免出现临时滚动条。
+           启动层改成常驻后不再靠「元素移除」让规则失效，改按退场标记判断 */
+        html:has(#bootSplash:not(.boot-splash--gone)) { overflow: hidden; }
 
         /* 启动层：一束对焦光扫过磨砂玻璃字标，字标在光后面逐渐变清晰。
            首帧只有深底与两团色光，字标由内联 SVG 画出 —— 不依赖外部 CSS / 字体 / 脚本。
@@ -251,6 +252,18 @@
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
+        }
+        /* 常驻：淡出结束后只从布局与无障碍树上挪开，节点留着——
+           换数据域时要原地重写同一块招牌，重载那一套（新建文档 → 重新解析 SVG）没有了 */
+        #bootSplash.boot-splash--gone {
+            display: none;
+        }
+        /* 重写招牌前的复位：瞬间回到可见态、不参与淡入，否则会先亮一下再开始写 */
+        #bootSplash.boot-splash--reset {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+            transition: none;
         }
         /* 鉴权阶段：登录框要盖在启动层（z-index 9999）之上，用户才能直接输入邀请码 */
         #inviteLoginModal.is-boot {
@@ -896,28 +909,20 @@
             completeScan();
             if (loadingEl) loadingEl.classList.remove('is-visible');
 
-            function removeSplash() {
-                if (splash.parentNode) splash.parentNode.removeChild(splash);
-                // 启动屏完全退场、首页已可见：这时才开始后台预加载其他页面
-                if (window.LeLeBoot && typeof window.LeLeBoot.onEntered === 'function') {
-                    window.LeLeBoot.onEntered();
-                }
-            }
-
-            if (fromDomainSwitch) {
-                // 换场回来：字标不爆开——爆开是「首次开场」的动作，换场只是把同一块招牌重写一遍，
+            if (fromDomainSwitch || replaying) {
+                // 换场回来 / 原地重写：字标不爆开——爆开是「首次开场」的动作，换场只是把同一块招牌重写一遍，
                 // 写完让球面光走完再淡出，把灯交还给页面。
-                // 这里的 300 / 900 比首次开场的 380 / 1000 更紧：换场是用户主动点出来的，
+                // 这里的 300 / 900 比首次开场的 420 / 1000 更紧：换场是用户主动点出来的，
                 // 不该比首次启动还慢。
                 setTimeout(function () { splash.classList.add('boot-splash--done'); }, 300);
-                setTimeout(removeSplash, 900);
+                setTimeout(retireSplash, 900);
                 return;
             }
 
             splash.classList.add('is-burst');
             setTimeout(function () { splash.classList.add('is-land'); }, 160);
             setTimeout(function () { splash.classList.add('boot-splash--done'); }, 420);
-            setTimeout(removeSplash, 1000);
+            setTimeout(retireSplash, 1000);
         }
 
         // 三闸门：入场动画落地 + 交互就绪 + 鉴权通过 + 首页就绪；谁慢等谁
@@ -939,6 +944,96 @@
         window.__LELETV_BOOT_READY__ = markAppReady;
         // 通知首页跳过 playHomeIntro：本启动屏已接管入场视觉，不要播第二遍
         window.__LELETV_BOOT_INTRO__ = true;
+
+        // ---------- 常驻与重写 ----------
+        // 换数据域不再重载文档，启动层因此不能随退场一起删掉：它要能「再放一遍」——
+        // 复位 → 按换场时长重写 880ms → 合焦 → 亮 300ms → 淡出 → 收起。
+        // 与首次开场的差别只有两处：字标不爆开（爆开属于第一次进站）、不报加载读数。
+        var splashRetired = false;   // 首次退场已完成（换场重写只在之后可用）
+        var replaying = false;       // 正在重写招牌
+        var replayDone = null;       // 重写并退场结束后的回调（swapDomain 用）
+
+        /** 退场：只从布局与无障碍树上挪开，节点留下 */
+        function retireSplash() {
+            splash.classList.add('boot-splash--gone');
+            splash.setAttribute('aria-hidden', 'true');
+            if (!splashRetired) {
+                splashRetired = true;
+                // 启动屏完全退场、首页已可见：这时才开始后台预加载其他页面（只做一次）
+                if (window.LeLeBoot && typeof window.LeLeBoot.onEntered === 'function') {
+                    window.LeLeBoot.onEntered();
+                }
+            }
+            // 换场重写结束：把控制权交回调用方
+            if (replayDone) {
+                var done = replayDone;
+                replayDone = null;
+                replaying = false;
+                done();
+            }
+        }
+
+        /** 复位到「刚进站」的状态：可见、不淡、笔画全收回去（写之前的那一刻） */
+        function resetSplashForReplay() {
+            splash.classList.remove('boot-splash--gone', 'boot-splash--done', 'is-burst', 'is-land', 'is-lit', 'is-tracing', 'is-intro');
+            splash.classList.add('boot-splash--reset');
+            splash.removeAttribute('aria-hidden');
+            if (loadingEl) loadingEl.classList.remove('is-visible');
+            if (hintEl) hintEl.classList.remove('is-visible');
+            hintShown = false;
+            renderTrace(0);
+            void splash.offsetWidth;     // 强制回流：下面重新加类时动画才会从第一帧开始播
+            splash.classList.remove('boot-splash--reset');
+            splash.classList.add('is-intro', 'is-tracing');
+        }
+
+        /**
+         * 原地重写招牌。onDone 在淡出、收起之后调用。
+         * 返回 false 表示当前不能重写（首屏还没退场 / 上一次还没结束）。
+         */
+        function replaySplash(onDone) {
+            if (!splash || replaying || !splashRetired) return false;
+            replaying = true;
+            replayDone = typeof onDone === 'function' ? onDone : null;
+
+            // 复位三闸门：换场不重新等鉴权与首页，写完就走
+            released = false;
+            forced = true;
+            introHeld = false;
+            appReady = true;
+            authReady = true;
+            homeReady = true;
+            waitingAuth = false;
+            scanDone = false;
+            scanStart = 0;
+            scanMs = SWITCH_SCAN_MS;
+            stallPaused = true;          // 换场不报读数，也就不需要进度缓推
+
+            // 与重载那条路一样：换场后的首帧先由招牌遮住
+            document.documentElement.setAttribute('data-domain-shown', '1');
+            resetSplashForReplay();
+
+            if (reducedMotion()) {
+                // 减少动效：不描边，直接合焦，checkArrive 立刻走换场退场
+                completeScan();
+                return true;
+            }
+
+            // 后台标签页会暂停 rAF：给书写一个定时器兜底，别让换场停在半路
+            setTimeout(function () {
+                if (replaying && !scanDone) completeScan();
+            }, SWITCH_SCAN_MS + 80);
+
+            requestAnimationFrame(tick);
+            return true;
+        }
+
+        // 换域编排用：src/router 或换域调用方需要「重写招牌再开灯」时调这里
+        window.__LELETV_BOOT_SPLASH__ = {
+            replay: replaySplash,
+            isRetired: function () { return splashRetired; },
+            isHidden: function () { return splash.classList.contains('boot-splash--gone'); }
+        };
 
         // ---------- 启动编排接口 ----------
         // 顺序由 src/boot.ts 驱动：先鉴权，鉴权通过才 loadHome，
@@ -981,7 +1076,8 @@
             checkArrive();
         }
         function forceArrive() {
-            if (released) return;
+            // 换场重写中不要被慢速兜底打断：那 20s / 8s 定时器是给首屏准备的
+            if (released || replaying) return;
             forced = true;
             appReady = true;
             authReady = true;
@@ -1333,7 +1429,9 @@
             if (typeof window.__LELETV_BOOT_READY__ === 'function') return; // 引擎已接管，交给它按动画节奏退场
             splash.classList.add('boot-splash--done');
             setTimeout(function () {
-                if (splash.parentNode) splash.parentNode.removeChild(splash);
+                // 引擎没接管就没人会调它的重写接口，可以放心把节点收进「已退场」状态
+                splash.classList.add('boot-splash--gone');
+                splash.setAttribute('aria-hidden', 'true');
             }, 400);
         }, 9000);
     })();
