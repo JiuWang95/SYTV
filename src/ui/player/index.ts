@@ -33,7 +33,7 @@ import {
 } from './detail';
 import { TIMING } from '../../core/timing';
 import { StorageService } from '../../core/storage';
-import { TMDB_WORKER_URL } from '../../core/config';
+import { TMDB_IMAGE_BASE, TMDB_WORKER_URL } from '../../core/config';
 import { refreshRelatedSection } from './related';
 
 // 返回导航已迁至 src/ui/player/navigation.ts（阶段 5B-2d）
@@ -122,7 +122,7 @@ interface PlayerIndexWindow extends Window {
 const playerIndexWindow = window as PlayerIndexWindow;
 
 // TMDB 影片详情配置（TMDB优先，视频源API兜底）
-const PLAYER_TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
+const PLAYER_TMDB_IMAGE_BASE = TMDB_IMAGE_BASE;
 
 interface TmdbSearchResult {
     media_type?: string;

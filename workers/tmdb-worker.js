@@ -37,6 +37,55 @@
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
+// ====== 海报代理（/img/w342/<file>） ======
+// 前端把海报地址从 image.tmdb.org 换到本 Worker 后，收益有两块：
+//   1. 浏览器只用一条到 Worker 的连接（页面里已有 preconnect），省掉连第三方图片域
+//      的 DNS + TCP + TLS；跨境线路上这一段通常是 2 个 RTT、300ms 以上
+//   2. 边缘缓存 30 天 + immutable，回访用户直接命中浏览器缓存，一次都不回源
+const IMG_PATH_RE = /^\/(w\d{2,4}|original)\/[A-Za-z0-9_-]+\.[a-z]{2,5}$/;
+const IMG_CACHE_SECONDS = 30 * 24 * 60 * 60;
+
+async function handleImageRequest(request, ctx, url) {
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    return new Response('Method Not Allowed', { status: 405, headers: { Allow: 'GET, HEAD' } });
+  }
+
+  // 只放行 TMDB 图片的固定形状（尺寸段 + 文件名），避免被当成任意 URL 代理
+  const rest = url.pathname.slice('/img'.length);
+  if (!IMG_PATH_RE.test(rest)) {
+    return new Response('Not Found', { status: 404 });
+  }
+
+  // 缓存键忽略查询串与主机名差异，同一张图全站共用一个条目
+  const cacheKey = new Request('https://img-cache.local/img' + rest, { method: 'GET' });
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
+  const upstream = await fetch(TMDB_IMAGE_BASE + rest, {
+    cf: { cacheEverything: true, cacheTtl: IMG_CACHE_SECONDS },
+    headers: { Accept: 'image/avif,image/webp,image/*,*/*;q=0.8' }
+  });
+  if (!upstream.ok) {
+    return new Response(upstream.status === 404 ? 'Not Found' : 'Bad Gateway', {
+      status: upstream.status === 404 ? 404 : 502
+    });
+  }
+
+  const headers = new Headers(upstream.headers);
+  headers.set('Cache-Control', 'public, max-age=' + IMG_CACHE_SECONDS + ', immutable');
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.delete('Set-Cookie');
+  headers.delete('Expires');
+
+  const response = new Response(request.method === 'HEAD' ? null : upstream.body, {
+    status: 200,
+    headers
+  });
+  if (ctx && ctx.waitUntil) ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 // ====== 邀请码 API 辅助函数 ======
 
 // 设备记录找回门槛：设备实例 ID 丢失时（多为 Safari ITP 清理长期未访问站点的数据），
@@ -3005,6 +3054,11 @@ export default {
     // /invite/* 路由 → 邀请码 API
     if (path.startsWith('/invite/')) {
       return handleInviteRequest(request, env);
+    }
+
+    // /img/* 路由 → 海报代理（边缘 + 浏览器长缓存）
+    if (path.startsWith('/img/')) {
+      return handleImageRequest(request, ctx, url);
     }
 
     // /api-sites/* 与 /admin* 路由 → 视频源配置 API

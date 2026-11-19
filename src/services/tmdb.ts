@@ -1,5 +1,5 @@
 // 阶段 5B-3：TMDB Worker URL 改为显式 import。
-import { TMDB_WORKER_URL } from '../core/config';
+import { TMDB_IMAGE_BASE, TMDB_WORKER_URL } from '../core/config';
 
 interface TmdbState {
   type: string;
@@ -157,7 +157,7 @@ function restoreTmdbScroll(): void {
 tmdbWindow.saveTmdbScroll = saveTmdbScroll;
 
 export const TMDB_CONFIG: TmdbConfig = {
-  imageBase: 'https://image.tmdb.org/t/p',
+  imageBase: TMDB_IMAGE_BASE,
   posterSize: 'w342',
   backdropSize: 'w780',
   language: 'zh-CN'

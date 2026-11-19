@@ -23,14 +23,16 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/image/brand/apple-touch-icon-180.png?v=le6">
     <link rel="manifest" href="/manifest.json">
 
-    <!-- 提前握手海报图床；正文两种字重先取，首屏文字不等字体 -->
-    <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
+    <!-- 正文只预取 Regular 一个字重（40KB）。
+         Bold 首屏几乎只用在中文标题上（中文本来就走系统字体），预取它等于让 40KB 和 JS bundle
+         抢跨境带宽；需要时 @font-face 自己的 font-display: swap 会补上，不阻塞首屏文字。
+         海报不再直连 image.tmdb.org（改走 Worker 的 /img 代理），所以这里也不为它预连；
+         Worker 域名的 preconnect 在文件末尾的环境变量脚本里按需创建。 -->
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/libs/geist/Geist-Regular.woff2?v=v3.4.0">
-    <link rel="preload" as="font" type="font/woff2" crossorigin href="/libs/geist/Geist-Bold.woff2?v=v3.4.0">
     <!-- 播放页 bundle 的文件名（打包脚本会更新），结果页出来后用它预取播放页资源 -->
-    <meta name="leletv-player-bundle" content="dist/leletv-player.QKSCBK5D.js">
+    <meta name="leletv-player-bundle" content="dist/leletv-player.OG3IQYBJ.js">
     <!-- 非首页页面的按需 bundle（构建脚本会更新文件名） -->
-    <meta name="leletv-page-bundles" content='{"category":"dist/leletv-category.RYZUOAG4.js","settings":"dist/leletv-settings.DEGZJN5D.js"}'>
+    <meta name="leletv-page-bundles" content='{"category":"dist/leletv-category.NOMJPC6I.js","settings":"dist/leletv-settings.DEGZJN5D.js"}'>
 
     <!-- PWA：添加到主屏/桌面后以独立窗口运行（无浏览器 UI） -->
     <!-- mobile-web-app-capable 为标准化写法（Chrome 已废弃 apple-* 前缀）；apple-* 保留以兼容 iOS Safari -->
@@ -49,6 +51,21 @@
     <link rel="stylesheet" href="/src/styles/variables.css?v=v4.2.6">
     <link rel="stylesheet" href="/src/styles/base.css?v=v4.2.6">
     <link rel="stylesheet" href="/src/pages/home/style.css?v=v4.2.6">
+
+    <!-- 首屏脚本预载，放在 head 而不是 body 末尾：
+         <script type="module"> 要等解析到 body 末尾才开始下载，跨境线路单程 150~250ms，
+         等于把整个 bundle 的下载推后一整段 HTML 解析时间。这里提前声明 modulepreload，
+         让 JS 与 HTML/CSS 并行下载；执行位置仍由 body 末尾的 <script type="module"> 决定，行为不变。 -->
+    <!-- #bundle-preload -->
+    <link rel="modulepreload" href="dist/leletv-core.5VEBPEOQ.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-WF3VK4AM.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-YVMJLV75.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-C7ZP77W2.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-GTCVV5L2.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-DWOYCZYJ.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/leletv-app.6QBBVRB3.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-IIEDFRDF.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-DQFWEQJD.js?v=v4.2.6">
 
     <!-- Geist 字体：本地自托管（原先走 cdn.jsdelivr.net，跨境抖动会拖慢首屏；libs/* 命中长缓存） -->
     <style>
@@ -1257,15 +1274,8 @@
         window._jsSha256 = window.sha256;
     </script>
 
-    <link rel="modulepreload" href="dist/chunks/chunk-WF3VK4AM.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-LYA5RYR5.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-C7ZP77W2.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-AKTMBDU4.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-DWOYCZYJ.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-4OKNI7F2.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-ACGP5GPH.js?v=v4.2.6">
-    <script type="module" src="dist/leletv-core.2AQJN6EQ.js?v=v4.2.6"></script>
-    <script type="module" src="dist/leletv-app.KT7GFYDE.js?v=v4.2.6"></script>
+    <script type="module" src="dist/leletv-core.5VEBPEOQ.js?v=v4.2.6"></script>
+    <script type="module" src="dist/leletv-app.6QBBVRB3.js?v=v4.2.6"></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

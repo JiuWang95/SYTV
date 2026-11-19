@@ -41,16 +41,22 @@ function distRelative(outPath) {
   return rel;
 }
 
-/** 入口的静态 import（共享 chunk）→ modulepreload 标签 */
-function preloadLinks(entryFiles, prefix, eol) {
+/** 入口的静态 import（共享 chunk）+ 入口文件自身 → modulepreload 标签
+ *  入口本身也 preload：否则 dist/leletv-*.js 要等解析到 body 末尾才发现，
+ *  跨境线路上等于白等一整段 HTML 的传输/解析时间。 */
+function preloadLinks(entryFiles, prefix, eol, includeEntry = false) {
   const seen = new Set();
   const links = [];
   for (const file of entryFiles) {
     const info = result.metafile.outputs[file];
     if (!info) continue;
+    const targets = includeEntry ? [file] : [];
     for (const imp of info.imports || []) {
       if (imp.kind !== 'import-statement') continue;
-      const rel = distRelative(imp.path).replace(/^\.\//, '');
+      targets.push(imp.path);
+    }
+    for (const target of targets) {
+      const rel = distRelative(target).replace(/^\.\//, '');
       if (seen.has(rel)) continue;
       seen.add(rel);
       links.push('    <link rel="modulepreload" href="' + prefix + rel + '?v=' + version + '">');
@@ -152,9 +158,13 @@ async function main() {
   const idxEol = detectEol(idx);
   idx = stripModulePreloads(stripJsScripts(idx));
   const envMarker = '    <!-- \u73af\u5883\u53d8\u91cf\u6ce8\u5165\u811a\u672c -->';
-  const idxPreload = preloadLinks([entryMeta[CORE.name], entryMeta[APP.name]], 'dist/', idxEol);
-  const idxBundle = (idxPreload ? idxPreload + idxEol : '')
-    + '    <script type="module" src="dist/' + coreFile + '?v=' + version + '"></script>' + idxEol
+  // 首屏 modulepreload 注入 head 的占位注释（执行顺序仍由 body 末尾的 module script 决定）
+  const headPreloadMarker = '    <!-- #bundle-preload -->';
+  const idxPreload = preloadLinks([entryMeta[CORE.name], entryMeta[APP.name]], 'dist/', idxEol, true);
+  if (!idx.includes(headPreloadMarker)) throw new Error('index.html 缺少 head 预载占位：#bundle-preload');
+  idx = idx.replace(headPreloadMarker, headPreloadMarker + (idxPreload ? idxEol + idxPreload : ''));
+  const idxBundle =
+    '    <script type="module" src="dist/' + coreFile + '?v=' + version + '"></script>' + idxEol
     + '    <script type="module" src="dist/' + appFile + '?v=' + version + '"></script>';
   idx = idx.replace(envMarker, idxBundle + idxEol + idxEol + envMarker);
   // 结果页预取播放页资源用的 bundle 名

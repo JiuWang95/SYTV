@@ -6,6 +6,7 @@
  */
 
 import { API_SITES, isHiddenContentMode, scopedKey, selectedAPIs } from '../../core/state';
+import { TMDB_IMAGE_BASE } from '../../core/config';
 import { HubFlow } from './hub-flow';
 import type { HubFlowApi, HubStage } from './hub-flow';
 
@@ -80,7 +81,7 @@ export const HomeShelves: HomeShelvesApi = (function (): HomeShelvesApi {
   }
 
   function tmdbImage(path?: string): string {
-    const base = (typeof TMDB_CONFIG === 'object' && TMDB_CONFIG && TMDB_CONFIG.imageBase) || 'https://image.tmdb.org/t/p';
+    const base = (typeof TMDB_CONFIG === 'object' && TMDB_CONFIG && TMDB_CONFIG.imageBase) || TMDB_IMAGE_BASE;
     return path ? base + '/w342' + path : '';
   }
 
@@ -123,6 +124,62 @@ export const HomeShelves: HomeShelvesApi = (function (): HomeShelvesApi {
    * opts.rating  海报底部评分条的分数（如「7.0」），opts.votes 为评价人数文字；给了 rating 才画评分条
    * opts.progress 0～1 的观看进度条
    */
+  /**
+   * 海报懒加载 + 尺寸降级
+   *
+   * 首页一次渲染 20+ 张封面（「最近更新」四行 + 本周热门 + 继续观看），全部直连
+   * image.tmdb.org。跨境线路上一张 w342 封面 30~60KB，20 张就是 1MB 量级，会和
+   * 首屏 CSS/JS 抢带宽，把「启动慢」放大成「海报一行行往外蹦」。这里做两件事：
+   *   1. 卡片进入视口（提前 300px）才写 --poster，没滚到的行不发请求
+   *   2. 支持 image-set 的浏览器 1x 取 w185、2x 取 w342，1 倍屏省掉一半流量
+   */
+  const lazyLoaders = new Map<HTMLElement, () => void>();
+  let posterObserver: IntersectionObserver | null = null;
+  let imageSetSupport: boolean | null = null;
+
+  function supportsImageSet(): boolean {
+    if (imageSetSupport === null) {
+      try {
+        imageSetSupport = typeof CSS !== 'undefined'
+          && typeof CSS.supports === 'function'
+          && CSS.supports('background-image', 'image-set(url("x") 1x)');
+      } catch (e) {
+        imageSetSupport = false;
+      }
+    }
+    return imageSetSupport;
+  }
+
+  /** --poster 的取值，以及用于探测 404 的那张图（必须和 CSS 实际取的一致，别多下一张） */
+  function posterCandidates(url: string): { bg: string; probe: string } {
+    const small = url.replace('/w342/', '/w185/');
+    if (small === url || !supportsImageSet()) return { bg: cssUrl(url), probe: url };
+    const dpr = window.devicePixelRatio || 1;
+    return {
+      bg: 'image-set(' + cssUrl(small) + ' 1x, ' + cssUrl(url) + ' 2x)',
+      probe: dpr < 1.5 ? small : url
+    };
+  }
+
+  function observePoster(card: HTMLElement, load: () => void): void {
+    if (typeof IntersectionObserver !== 'function') { load(); return; }
+    if (!posterObserver) {
+      posterObserver = new IntersectionObserver(function (entries) {
+        const observer = posterObserver;
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          const target = entry.target as HTMLElement;
+          if (observer) observer.unobserve(target);
+          const run = lazyLoaders.get(target);
+          lazyLoaders.delete(target);
+          if (run) run();
+        });
+      }, { rootMargin: '300px 0px' });
+    }
+    lazyLoaders.set(card, load);
+    posterObserver.observe(card);
+  }
+
   function posterCard(opts: PosterCardOptions): HTMLElement {
     const card = el('button', 'v2-pcard') as HTMLButtonElement;
     card.type = 'button';
@@ -134,15 +191,19 @@ export const HomeShelves: HomeShelvesApi = (function (): HomeShelvesApi {
     const poster = el('div', 'v2-poster');
     const initial = el('span', 'v2-initial', opts.title.slice(0, 1));
     if (isSafeImageUrl(opts.img)) {
-      card.style.setProperty('--poster', cssUrl(opts.img));
-      // 封面 404 / 被拦时换成片名首字占位，不中断渲染
-      const probe = new Image();
-      probe.onerror = () => {
-        card.style.removeProperty('--poster');
-        card.classList.add('is-noimg');
-        poster.insertBefore(initial, poster.firstChild);
-      };
-      probe.src = opts.img;
+      const url = opts.img;
+      observePoster(card, function () {
+        const pick = posterCandidates(url);
+        card.style.setProperty('--poster', pick.bg);
+        // 封面 404 / 被拦时换成片名首字占位，不中断渲染
+        const probe = new Image();
+        probe.onerror = () => {
+          card.style.removeProperty('--poster');
+          card.classList.add('is-noimg');
+          poster.insertBefore(initial, poster.firstChild);
+        };
+        probe.src = pick.probe;
+      });
     } else {
       card.classList.add('is-noimg');
       poster.appendChild(initial);

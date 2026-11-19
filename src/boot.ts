@@ -56,8 +56,11 @@ const bootWindow = window as BootWindow;
 var LeLeBoot = (function (): LeLeBootApi {
     'use strict';
 
-    // 首页数据超时：TMDB 跨境慢时不让启动屏无限等待，到点先进入首页再继续补数据
-    var HOME_TIMEOUT_MS = 4500;
+    // 首页数据超时：TMDB 跨境慢时不让启动屏无限等待，到点先进入首页再继续补数据。
+    // 2.5s 的依据：国内到 Cloudflare 节点单程 200ms 量级，一次 Worker 查询 + 一次海报列表
+    // 就要 1s 以上；超过 2.5s 还没回来时，用户盯着的已经是「一片黑的启动动画」而不是内容，
+    // 先放行进首页（骨架 + 首字占位），数据到了再补，体感上比多等两秒更快。
+    var HOME_TIMEOUT_MS = 2500;
     // 进入首页后的预加载顺序（固定，与用户点击习惯无关）
     var PRELOAD_ORDER = ['category', 'history', 'settings', 'about'];
 

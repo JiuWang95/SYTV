@@ -25,6 +25,14 @@ export const MAX_HISTORY_ITEMS = 5;
 // 留空则使用本地 Node.js 代理 /api/tmdb
 export const TMDB_WORKER_URL = (window as LeLeWindow).__ENV__?.TMDB_WORKER_URL || '';
 
+// 海报图片基址
+// 配了 Worker 就走 Worker 的 /img 代理：浏览器复用已有连接、边缘缓存 30 天，省掉连
+// image.tmdb.org 的跨境握手；没配（纯本地开发）则直连 TMDB。
+// 注意部署顺序：先 deploy Worker（新增 /img 路由），再发 Pages，否则海报会 404。
+export const TMDB_IMAGE_BASE = TMDB_WORKER_URL
+  ? TMDB_WORKER_URL.replace(/\/+$/, '') + '/img'
+  : 'https://image.tmdb.org/t/p';
+
 // SHA-256 兼容性检查（用于 invite-auth 管理员 token 计算）
 (window as LeLeWindow)._sha256Available = typeof window.crypto?.subtle?.digest === 'function' || typeof (window as Window & { _jsSha256?: unknown })._jsSha256 === 'function';
 
