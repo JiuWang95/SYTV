@@ -18,7 +18,7 @@
 | `gh-cli` | GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests,… | `.agents/skills/gh-cli/` |
 | `git-commit` | Execute git commit with conventional commit message analysis, intelligent staging, and… | `.agents/skills/git-commit/` |
 | `high-end-visual-design` | Teaches the AI to design like a high-end agency | `.agents/skills/high-end-visual-design/` |
-| `impeccable` | Use when the user wants to design, redesign, shape, critique, audit, polish, clarify,… | `.agents/skills/impeccable/` |
+| `impeccable` | Use when the user wants to design, redesign, shape, critique, audit, polish, simplify,… | `.agents/skills/impeccable/` |
 | `installing-project-skills` | Use when installing skills for a new project, or when the user asks to update, upgrade,… | `.agents/skills/installing-project-skills/` |
 | `karpathy-guidelines` | Behavioral guidelines to reduce common LLM coding mistakes | `.agents/skills/karpathy-guidelines/` |
 | `managing-project-skills` | Use when the user asks to install, update, upgrade, uninstall, or check status of… | `.agents/skills/managing-project-skills/` |

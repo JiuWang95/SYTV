@@ -98,7 +98,7 @@
 | `gh-cli` | GitHub CLI (gh) comprehensive reference for repositories, issues, pull requests,… |
 | `git-commit` | Execute git commit with conventional commit message analysis, intelligent staging, and… |
 | `high-end-visual-design` | Teaches the AI to design like a high-end agency |
-| `impeccable` | Use when the user wants to design, redesign, shape, critique, audit, polish, clarify,… |
+| `impeccable` | Use when the user wants to design, redesign, shape, critique, audit, polish, simplify,… |
 | `installing-project-skills` | Use when installing skills for a new project, or when the user asks to update, upgrade,… |
 | `karpathy-guidelines` | Behavioral guidelines to reduce common LLM coding mistakes |
 | `managing-project-skills` | Use when the user asks to install, update, upgrade, uninstall, or check status of… |
