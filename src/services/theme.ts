@@ -90,31 +90,11 @@ interface PickerState {
     v: number;
 }
 
-interface BurstParticle {
-    a0: number;
-    r0: number;
-    ring: number;
-    r1: number;
-    swirl: number;
-    size: number;
-    delay: number;
-}
 
 interface ThemeWindow extends Window {
     LeLeThemeStore?: { KEYS: string[]; isKey: (key: string) => boolean };
     LeLeThemeSystem?: { render: () => void };
     LeLeMotion?: { reduced: () => boolean };
-    LeLeBrandCanvas?: {
-        draw: (
-            ctx: CanvasRenderingContext2D,
-            x: number,
-            y: number,
-            size: number,
-            rgb: number[],
-            alpha: number,
-            scale: number
-        ) => boolean;
-    };
     _themeRgbCache?: number[] | null;
 }
 
@@ -557,172 +537,187 @@ interface ThemeWindow extends Window {
     }
 
     // ===================== 换色过渡 =====================
-    // 与首屏加载动画同一套视觉：粒子自四周螺旋凝聚（旧色）→ 中心实体化出 LeLeTV（旧色）
-    // → 爆开，粒子与页面同时切成新色并向外飞散。
-    // 关键：不重载、不改动 DOM —— 页面在整段过渡里保持静止（不抖动、不重排、不换内容），
-    // 动的只有这层透明画布；新颜色要到"爆开"那一刻才落到页面上。
+    // 换的是整套配色，不是换一张封面：旧色若在某一帧直接跳成新色，那一下是"闪"，不是"换色"。
+    // 所以这里直接对颜色变量做数值插值（hex / "r, g, b" / "r g b" / rgba(...) 四种写法都能插），
+    // 让整个界面在 MORPH_MS 里从旧配色溶进新配色；同时从刚操作的那块控件泛出一层新色的光，
+    // 给一个"灯换了"的实体感。不重载、不动 DOM、不遮页面，连点几次也不会卡。
 
-    var PHASE_GATHER_MS = 560;   // 粒子自四周收拢到星环上
-    var PHASE_BRAND_MS = 480;    // 中心 LeLeTV 实体化 + 停留（此时页面仍是旧色）
-    var PHASE_BURST_MS = 430;    // 爆开：这一刻换色，粒子自星环向外飞散
-    var PHASE_FADE_MS = 200;     // 覆盖层淡出
-    var BRAND_TEXT = 'LeLeTV';
-    // 星环：基准半径与首屏加载动画的 brandRadius 一致（字号 × 1.5），尺寸所以对得上。
-    // 它的环带是 [0.72R, 1.2R]；这里刻意做得更厚，外围散落也更多
-    var RING_IN = 0.62;          // 星环内径 / 基准半径
-    var RING_OUT = 1.55;         // 星环外径 / 基准半径
-    var RING_SPIN = 0.00025;     // 星环整体缓慢自转（弧度/毫秒）
+    var MORPH_MS = 460;          // 配色溶合的时长
+    var MORPH_FRAME_MS = 30;     // 变量写入节流：约 33fps 足够，省一半整页重绘
+    var WASH_MS = 420;           // 新色从那一点泛开的时长
+    var WASH_START_SCALE = 0.04; // 泛光起点：几乎是一个点
+    var WASH_SPAN = 0.85;        // 泛光长到多大（× 屏幕长边）：只当"这里亮了"的提示，不铺满全屏
 
     function reducedMotion(): boolean {
         if (themeWindow.LeLeMotion) return themeWindow.LeLeMotion.reduced();   // 设置里可强制开启 / 关闭
         try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
     }
 
-    function playThemeBurst(oldRgb: number[], newRgb: number[], switchTheme: () => void, onDone?: () => void): void {
-        var done = function () { if (onDone) onDone(); };
-        if (reducedMotion()) { switchTheme(); done(); return; }
+    /** 颜色变量的四种写法：hex、"r, g, b"、"r g b"、rgba(r, g, b, a)；插值后要按原样写回去 */
+    interface ColorLiteral {
+        kind: 'hex' | 'channels';
+        rgb: number[];
+        alpha: number;
+        prefix: string;   // 数字前的前缀，如 "rgba("
+        sep: string;      // 数字间的分隔，如 ", " 或 " "
+        suffix: string;   // 数字后的后缀，如 ")"
+        upper: boolean;   // hex 原本是大写还是小写
+        hasAlpha: boolean;
+    }
 
-        var w = window.innerWidth, h = window.innerHeight;
-        var cv = document.createElement('canvas');
-        cv.className = 'theme-burst-canvas';
-        // 样式内联：这层只是过渡用的覆盖画布，不必占用样式表里的规则
-        cv.style.cssText = 'position:fixed;inset:0;z-index:9990;display:block;pointer-events:none;background:transparent;';
-        var dpr = Math.min(window.devicePixelRatio || 1, 2);
-        cv.width = Math.max(1, Math.floor(w * dpr));
-        cv.height = Math.max(1, Math.floor(h * dpr));
-        cv.style.width = w + 'px';
-        cv.style.height = h + 'px';
-        const ctx = cv.getContext('2d');
-        if (!ctx) { switchTheme(); done(); return; }
-        const ctx2d: CanvasRenderingContext2D = ctx;
-        document.body.appendChild(cv);
-        ctx2d.scale(dpr, dpr);
+    var COLOR_VARS = BASE_VARS.concat(EXTRA_VARS, RAMP_STOPS_SET);
 
-        var cx = w / 2, cy = h / 2;
-        var maxR = Math.sqrt(cx * cx + cy * cy);
-        var brandSize = clamp(w * 0.15, 26, 82);   // 与首屏占位字样的 clamp(26px, 15vw, 82px) 对齐
-        var ringBase = brandSize * 1.5;            // 与加载动画 drawRing 的 brandRadius 同值
-        var count = clamp(Math.round((w * h) / 2000), 320, 900);
-        var parts: BurstParticle[] = [];
-        for (var i = 0; i < count; i++) {
-            var rnd = Math.random();
-            parts.push({
-                a0: Math.random() * Math.PI * 2,
-                r0: maxR * (0.65 + Math.random() * 0.55),   // 凝聚起点：都在环外，保证是"收进来"
-                ring: RING_IN + Math.random() * (RING_OUT - RING_IN), // 该粒子落在哪一圈：内→外径之间散布
-                r1: maxR * (0.35 + Math.random() * 0.90),   // 爆开终点半径
-                swirl: (0.7 + Math.random() * 0.9) * (rnd < 0.5 ? -1 : 1),
-                size: 0.8 + Math.random() * 1.7,
-                delay: Math.random() * 0.18
-            });
+    function parseColorLiteral(raw: string): ColorLiteral | null {
+        var s = String(raw == null ? '' : raw).trim();
+        if (!s) return null;
+        var hex = /^#([0-9a-f]{6})$/i.exec(s);
+        if (hex) {
+            var h = hex[1];
+            return {
+                kind: 'hex', upper: h === h.toUpperCase(), hasAlpha: false,
+                rgb: [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)],
+                alpha: 1, prefix: '', sep: '', suffix: ''
+            };
         }
+        var nums = s.match(/\d*\.?\d+/g);
+        if (!nums || nums.length < 3) return null;
+        var firstAt = s.indexOf(nums[0]);
+        var secondAt = s.indexOf(nums[1], firstAt + nums[0].length);
+        var lastNum = nums[nums.length - 1];
+        var lastAt = s.lastIndexOf(lastNum);
+        if (firstAt < 0 || secondAt < 0 || lastAt < 0) return null;
+        return {
+            kind: 'channels', upper: false, hasAlpha: nums.length > 3,
+            rgb: [parseFloat(nums[0]), parseFloat(nums[1]), parseFloat(nums[2])],
+            alpha: nums.length > 3 ? parseFloat(nums[3]) : 1,
+            prefix: s.slice(0, firstAt),
+            sep: s.slice(firstAt + nums[0].length, secondAt),
+            suffix: s.slice(lastAt + lastNum.length)
+        };
+    }
 
-        var brandFrom = PHASE_GATHER_MS * 0.68;            // 凝聚尾段就让字样浮现，避免"停一下再出字"
-        var burstAt = PHASE_GATHER_MS + PHASE_BRAND_MS;    // 爆开时刻 = 换色时刻
-        var total = burstAt + PHASE_BURST_MS + PHASE_FADE_MS;
-        var start = 0, switched = false, useRgb = oldRgb;
+    function formatColorLiteral(lit: ColorLiteral, rgb: number[], alpha: number): string {
+        var ch = rgb.map(function (v): number { return Math.round(clamp(v, 0, 255)); });
+        if (lit.kind === 'hex') {
+            var hex = '#' + ch.map(function (v): string { return (v < 16 ? '0' : '') + v.toString(16); }).join('');
+            return lit.upper ? hex.toUpperCase() : hex;
+        }
+        var parts = [String(ch[0]), String(ch[1]), String(ch[2])];
+        if (lit.hasAlpha) parts.push(clamp(alpha, 0, 1).toFixed(3));
+        return lit.prefix + parts.join(lit.sep) + lit.suffix;
+    }
 
+    /** 读 <html> 上这组颜色变量的当前生效值 */
+    function readColorVars(): Record<string, string> {
+        var cs = getComputedStyle(document.documentElement);
+        var out: Record<string, string> = {};
+        for (var i = 0; i < COLOR_VARS.length; i++) out[COLOR_VARS[i]] = cs.getPropertyValue(COLOR_VARS[i]).trim();
+        return out;
+    }
+
+    /**
+     * 首屏还没换过色时，色阶变量（--tw-pink-*-rgb）只存在于样式表里，getComputedStyle 读得到，
+     * 但 <html> 上并没有可插值的"旧值"。这里先用当前主色把色阶落一遍，
+     * 保证第一次换色时整套变量都有起点，不会只有色阶那几格是跳变的。
+     */
+    function ensureRampVars(): void {
+        var cs = getComputedStyle(document.documentElement);
+        if (cs.getPropertyValue('--tw-pink-500-rgb').trim()) return;
+        applyPalette(buildPalette(rgbToHex(readPrimaryRgb())));
+    }
+
+    function writeColorVars(values: Record<string, string>): void {
+        var st = document.documentElement.style;
+        for (var i = 0; i < COLOR_VARS.length; i++) {
+            var v = values[COLOR_VARS[i]];
+            if (typeof v === 'string' && v) st.setProperty(COLOR_VARS[i], v);
+        }
+    }
+
+    /**
+     * 把整套配色从旧值插值到新值。
+     * apply 只负责"落到新配色"：这里先趁它之前记一份旧值、在它之后再读一份新值，
+     * 然后把旧值压回页面、逐帧往新值走 —— 所以任何一帧都不会出现"整页闪一下"。
+     */
+    function playPaletteMorph(apply: () => void, onDone?: () => void): void {
+        var done = function (): void { if (onDone) onDone(); };
+        if (reducedMotion()) { apply(); done(); return; }
+        ensureRampVars();
+        var from = readColorVars();
+        apply();
+        var to = readColorVars();
+        var pairs: { name: string; a: ColorLiteral; b: ColorLiteral }[] = [];
+        COLOR_VARS.forEach(function (name: string): void {
+            var a = parseColorLiteral(from[name]);
+            var b = parseColorLiteral(to[name]);
+            if (a && b) pairs.push({ name: name, a: a, b: b });
+        });
+        writeColorVars(from);
+        var start = 0, lastWrite = -1;
         function frame(now: number): void {
             if (!start) start = now;
-            var t = now - start;
-            ctx2d.clearRect(0, 0, w, h);
-
-            // 颜色直到爆开那一帧才切换；此前粒子与字样一律旧色，页面也保持旧色
-            if (t >= burstAt && !switched) {
-                switched = true;
-                switchTheme();
-            }
-            useRgb = switched ? newRgb : oldRgb;
-            ctx2d.fillStyle = 'rgb(' + useRgb[0] + ',' + useRgb[1] + ',' + useRgb[2] + ')';
-
-            var inGather = t < PHASE_GATHER_MS;
-            var inBrand = !inGather && t < burstAt;
-            var gp = clamp(t / PHASE_GATHER_MS, 0, 1);
-            var up = clamp((t - burstAt) / PHASE_BURST_MS, 0, 1);
-            var spin = t * RING_SPIN;    // 星环整体缓慢自转
-
-            for (var i = 0; i < parts.length; i++) {
-                var q = parts[i];
-                var lp: number, le: number, r: number, alpha: number, a: number;
-                // 每颗粒子有自己的环半径：在内径与外径之间铺开，环带所以有厚度、外围也更散
-                var ringR = q.ring * ringBase;
-                // 三段共用同一套角度：起始角 + 一点旋进 + 整体自转。
-                // 旋进量刻意压得很小——每颗粒子随机正反大幅旋转正是"花瓣"的来源
-                var swirl = q.swirl * 0.3;
-                if (inGather) {
-                    // 自四周收到星环上（终点是环，不是中心）
-                    lp = clamp((gp - q.delay) / (1 - q.delay), 0, 1); // 每颗粒子的延迟，避免整齐划一
-                    le = 1 - Math.pow(1 - lp, 3);                    // easeOutCubic
-                    r = q.r0 * (1 - le) + ringR * le;
-                    alpha = 0.10 + 0.78 * le;
-                    a = q.a0 + swirl * le + spin;
-                } else if (inBrand) {
-                    // 停在星环上缓慢转动，把中间留给字样
-                    r = ringR;
-                    alpha = 0.88;
-                    a = q.a0 + swirl + spin;
-                } else {
-                    // 自星环向外飞散
-                    lp = clamp((up - q.delay) / (1 - q.delay), 0, 1);
-                    le = 1 - Math.pow(1 - lp, 3);
-                    r = ringR + q.r1 * le;
-                    alpha = 0.85 * (1 - lp);
-                    a = q.a0 + swirl + spin + le * 0.5;
-                }
-                ctx2d.globalAlpha = alpha;
-                ctx2d.beginPath();
-                ctx2d.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, q.size, 0, 6.2832);
-                ctx2d.fill();
-            }
-            ctx2d.globalAlpha = 1;
-
-            // 中心字样：凝聚尾段浮现 → 停留（旧色）→ 随爆开淡出，颜色取当前 useRgb
-            var brandIn = clamp((t - brandFrom) / (PHASE_GATHER_MS - brandFrom), 0, 1);
-            var brandOut = 1 - clamp((t - burstAt) / (PHASE_BURST_MS * 0.42), 0, 1);
-            var brandAlpha = brandIn * brandOut;
-            if (brandAlpha > 0.01) drawBrand(brandAlpha, 0.92 + 0.08 * brandIn);
-
-            if (t >= burstAt + PHASE_BURST_MS) {
-                cv.style.opacity = String(1 - clamp((t - burstAt - PHASE_BURST_MS) / PHASE_FADE_MS, 0, 1));
-            }
-            if (t < total) {
+            var k = clamp((now - start) / MORPH_MS, 0, 1);
+            if (k >= 1) { apply(); done(); return; }
+            // 写一次变量就要重算整页颜色（设置页里还有毛玻璃卡片），没必要按屏幕刷新率写：
+            // 30fps 的颜色过渡肉眼看不出台阶，但重绘次数少一半
+            if (lastWrite >= 0 && now - lastWrite < MORPH_FRAME_MS) {
                 requestAnimationFrame(frame);
-            } else {
-                if (cv.parentNode) cv.parentNode.removeChild(cv);
-                done();
+                return;
             }
+            lastWrite = now;
+            var e = 1 - Math.pow(1 - k, 3);     // easeOutCubic：先快后慢，颜色像"落定"
+            for (var i = 0; i < pairs.length; i++) {
+                var p = pairs[i];
+                var rgb = [
+                    p.a.rgb[0] + (p.b.rgb[0] - p.a.rgb[0]) * e,
+                    p.a.rgb[1] + (p.b.rgb[1] - p.a.rgb[1]) * e,
+                    p.a.rgb[2] + (p.b.rgb[2] - p.a.rgb[2]) * e
+                ];
+                var alpha = p.a.alpha + (p.b.alpha - p.a.alpha) * e;
+                document.documentElement.style.setProperty(p.name, formatColorLiteral(p.a, rgb, alpha));
+            }
+            requestAnimationFrame(frame);
         }
-
-        /** 中心 logo：圆角方块里的乐字 + 字标（brand-canvas.js，路径取自页面的品牌 sprite）；取不到 sprite 时退回文字 */
-        function drawBrand(alpha: number, scale: number): void {
-            var brand = themeWindow.LeLeBrandCanvas;
-            if (brand && brand.draw(ctx2d, cx, cy, brandSize * 1.1, useRgb, alpha, scale)) return;
-            var rgba = function (v: number) { return 'rgba(' + useRgb[0] + ',' + useRgb[1] + ',' + useRgb[2] + ',' + v + ')'; };
-            ctx2d.save();
-            ctx2d.globalAlpha = alpha;
-            ctx2d.translate(cx, cy);
-            ctx2d.scale(scale, scale);
-            ctx2d.font = '900 ' + brandSize + 'px "MapleMono", monospace';
-            ctx2d.textAlign = 'center';
-            ctx2d.textBaseline = 'middle';
-            ctx2d.shadowColor = rgba(0.55);
-            ctx2d.shadowBlur = 28;
-            ctx2d.fillStyle = rgba(0.5);
-            ctx2d.fillText(BRAND_TEXT, 0, 0);
-            ctx2d.shadowBlur = 0;
-            var grad = ctx2d.createLinearGradient(0, -brandSize * 0.6, 0, brandSize * 0.6);
-            grad.addColorStop(0, rgba(0.95));
-            grad.addColorStop(0.45, rgba(0.45));
-            grad.addColorStop(1, rgba(0.18));
-            ctx2d.fillStyle = grad;
-            ctx2d.fillText(BRAND_TEXT, 0, 0);
-            ctx2d.strokeStyle = rgba(0.25);
-            ctx2d.lineWidth = 1;
-            ctx2d.strokeText(BRAND_TEXT, 0, 0);
-            ctx2d.restore();
-        }
-
         requestAnimationFrame(frame);
+    }
+
+    /** 取元素中心：给泛光当锚点 */
+    function centerOf(el: Element | null | undefined): { x: number; y: number } | null {
+        if (!el || !el.getBoundingClientRect) return null;
+        var rect = el.getBoundingClientRect();
+        if (!rect.width && !rect.height) return null;
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    /** 新色从"刚操作的那块控件"泛开：一小团圆形光斑，涨到半个屏幕就散掉，只在起点处亮一下 */
+    function playColorWash(anchor: { x: number; y: number } | null, rgb: number[]): void {
+        if (reducedMotion() || !document.body) return;
+        var w = window.innerWidth, h = window.innerHeight;
+        var x = anchor ? anchor.x : w / 2;
+        var y = anchor ? anchor.y : h / 2;
+        var size = Math.ceil(Math.max(w, h) * 1.7);
+        var r = Math.round(clamp(rgb[0], 0, 255));
+        var g = Math.round(clamp(rgb[1], 0, 255));
+        var b = Math.round(clamp(rgb[2], 0, 255));
+        var el = document.createElement('div');
+        el.className = 'theme-wash';
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.left = Math.round(x - size / 2) + 'px';
+        el.style.top = Math.round(y - size / 2) + 'px';
+        el.style.background = 'radial-gradient(circle,'
+            + ' rgba(' + r + ',' + g + ',' + b + ',0.52) 0%,'
+            + ' rgba(' + r + ',' + g + ',' + b + ',0.20) 40%,'
+            + ' rgba(' + r + ',' + g + ',' + b + ',0) 70%)';
+        document.body.appendChild(el);
+        var anim = el.animate(
+            [
+                { transform: 'scale(' + WASH_START_SCALE + ')', opacity: 0.9 },
+                { transform: 'scale(' + WASH_SPAN + ')', opacity: 0 }
+            ],
+            { duration: WASH_MS, easing: 'cubic-bezier(0.22, 0.68, 0.28, 1)', fill: 'forwards' }
+        );
+        anim.onfinish = function (): void { if (el.parentNode) el.parentNode.removeChild(el); };
     }
 
     /** app-routing.js 在模块顶层缓存了主题色；换色后置空，让它的粒子下次重新读取新色 */
@@ -905,8 +900,9 @@ interface ThemeWindow extends Window {
             var mainHex = currentPickerHex();
             var key = p.custom ? 'custom' : p.presetKey;
             var auxHex = p.auxHex;
+            var anchor = centerOf(p.el);
             closePicker();
-            commitTheme(key, mainHex, auxHex);
+            commitTheme(key, mainHex, auxHex, anchor);
         });
 
         return p;
@@ -1073,17 +1069,17 @@ interface ThemeWindow extends Window {
     // ===================== 应用主题 =====================
 
     /**
-     * 应用配色：存档后原地播放过渡动画，由它在"爆开"那一刻把新色落到页面上。
-     * 全程不重载、不动 DOM —— 页面保持静止，只有那层过渡画布在动。
+     * 应用配色：先存档，再让整套变量从旧值溶到新值，同时从刚操作的那块控件泛出一层新色的光。
+     * 全程不重载、不动 DOM，页面颜色自己走过去 —— 没有"某一帧整页翻色"的那一下。
      */
-    function commitTheme(key: string, mainHex: string, auxHex: string): void {
+    function commitTheme(key: string, mainHex: string, auxHex: string, anchor?: { x: number; y: number } | null): void {
         if (_busy) return;
         var theme = buildTheme(key, mainHex, auxHex);
-        var oldRgb = readPrimaryRgb();
         _busy = true;
         saveTheme(theme);
 
-        playThemeBurst(oldRgb, theme.pal.rgb, function () {
+        playColorWash(anchor || null, theme.pal.rgb);
+        playPaletteMorph(function () {
             applyTheme(theme);
             resetParticleThemeCache();
             syncSelection();
@@ -1093,14 +1089,15 @@ interface ThemeWindow extends Window {
     }
 
     /** 恢复默认：删掉当前模式的存档、撤掉覆盖，回落到 css 默认配色 */
-    function resetTheme(): void {
+    function resetTheme(anchor?: { x: number; y: number } | null): void {
         if (_busy) return;
-        var oldRgb = readPrimaryRgb();
         var defaultPreset = presetOf(DEFAULT_KEY) as ThemePreset;
         var target = isHiddenMode() ? HIDDEN_DEFAULT_RGB : (hexToRgb(buildTheme(DEFAULT_KEY, defaultPreset.main ? defaultPreset.main.hex : '#ec4899', '').pal.hex) || [236, 72, 153]);
         _busy = true;
         clearState();
-        playThemeBurst(oldRgb, target, function () {
+
+        playColorWash(anchor || null, target);
+        playPaletteMorph(function () {
             clearPalette();
             resetParticleThemeCache();
             syncSelection();
@@ -1133,7 +1130,7 @@ interface ThemeWindow extends Window {
         var resetBtn = document.getElementById('themeResetBtn');
         if (resetBtn && resetBtn.dataset.leleBound !== '1') {
             resetBtn.dataset.leleBound = '1';
-            resetBtn.addEventListener('click', resetTheme);
+            resetBtn.addEventListener('click', function () { resetTheme(centerOf(resetBtn)); });
         }
     }
 

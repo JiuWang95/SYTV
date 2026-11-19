@@ -1485,6 +1485,17 @@ html[data-init-page="movies"] #page-movies {
     will-change: opacity;
 }
 
+/* 换配色的泛光：新色从刚操作的那块控件涨开，给「灯换了」一个实体起点。
+   只负责形状与层级，圆心位置与颜色由 theme.js 内联写 */
+.theme-wash {
+    position: fixed;
+    z-index: 9989;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: scale(0.06);
+    will-change: transform, opacity;
+}
+
 /* 数据域切换后重新载入时，首帧先由启动层遮住设置页；脚本没跑起来时 1.6s 后自动显示，不会白屏 */
 html[data-init-page="settings"]:not([data-domain-shown]) #page-settings,
 html[data-particle-in] #page-settings {
