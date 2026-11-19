@@ -903,10 +903,9 @@
             if (fromDomainSwitch || replaying) {
                 // 换场回来 / 原地重写：字标不爆开——爆开是「首次开场」的动作，换场只是把同一块招牌重写一遍，
                 // 写完让球面光走完再淡出，把灯交还给页面。
-                // 这里的 300 / 900 比首次开场的 420 / 1000 更紧：换场是用户主动点出来的，
-                // 不该比首次启动还慢。
-                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 300);
-                setTimeout(retireSplash, 900);
+                // 380 / 980 就是 DESIGN.md 那行「换数据域」的契约：380ms 光 + 500ms 淡出（含 100ms 延迟）。
+                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 380);
+                setTimeout(retireSplash, 980);
                 return;
             }
 
