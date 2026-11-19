@@ -776,7 +776,11 @@
         // L → 第一个 e → l → 第二个 e → T 的横 → T 的竖 → V。
         // 笔尖走一段、玻璃就在这一段下面浮现；每段时长按长度分配，不是平均分。
         var SCAN_MS = 1250;
-        var TOTAL_MS = SCAN_MS + 260;
+        // 换域回来不再从零启动（页面是新文档，但用户 0.5 秒前才看过这块招牌）：
+        // 书写压缩到 880ms，既保留「一笔一笔写」的读法，又不让人在同一个动作上等两遍
+        var SWITCH_SCAN_MS = 880;
+        var scanMs = fromDomainSwitch ? SWITCH_SCAN_MS : SCAN_MS;
+        var TOTAL_MS = scanMs + 260;
         var scanStart = 0;
         var scanDone = false;
         var NIB_LEN = 26;      // 笔尖亮线的长度（路径单位）
@@ -902,9 +906,11 @@
 
             if (fromDomainSwitch) {
                 // 换场回来：字标不爆开——爆开是「首次开场」的动作，换场只是把同一块招牌重写一遍，
-                // 写完让球面光走完再淡出，把灯交还给页面
-                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 380);
-                setTimeout(removeSplash, 1000);
+                // 写完让球面光走完再淡出，把灯交还给页面。
+                // 这里的 300 / 900 比首次开场的 380 / 1000 更紧：换场是用户主动点出来的，
+                // 不该比首次启动还慢。
+                setTimeout(function () { splash.classList.add('boot-splash--done'); }, 300);
+                setTimeout(removeSplash, 900);
                 return;
             }
 
@@ -1053,7 +1059,7 @@
             renderProgress(dt);
 
             if (!scanDone && !reducedMotion()) {
-                var k = clamp01((nowTs - scanStart) / SCAN_MS);
+                var k = clamp01((nowTs - scanStart) / scanMs);
                 if (k >= 1) completeScan();
                 else renderTrace(k);
             }
