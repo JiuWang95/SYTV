@@ -6,6 +6,7 @@
 import { API_SITES, selectedAPIs, setSelectedAPIs, customAPIs, setCustomAPIs, scopedKey, isHiddenContentMode, remoteDefaultKeys, remoteHiddenDefaultKeys } from '../../core/state';
 import type { CustomApiEntry } from '../../core/state';
 import { applyImportedSourcesFromCache } from './imported';
+import { applyRemoteApiSitesFromCache, syncRemoteApiSites } from './remote';
 
 export type { CustomApiEntry };
 
@@ -14,6 +15,8 @@ interface ApiConfigWindow extends Window {
     selectedAPIs?: string[];
     customAPIs?: CustomApiEntry[];
     _jsSha256?: (input: string) => Promise<string>;
+    // main.ts 里「远端源变化后重建设置页复选框」的具名入口（避免这里重复实现一遍）
+    __LELETV_REFRESH_API_CHECKBOXES__?: () => void;
 }
 
 interface AdminModalOptions {
@@ -305,6 +308,11 @@ export function refreshScopedSources(): void {
     }
     setCustomAPIs(apiConfigWindow.customAPIs || []);
 
+    // 远端源：私密源只在私密域下才下发（remote.ts 的 syncRemoteApiSites 按当前域决定是否请求
+    // /api-sites/hidden），所以换域必须重新走一遍，否则进了私密域还是一个私密源都看不到。
+    // 先同步套用本域缓存，再补一次网络拉取；列表晚到就再重画一遍（此时启动层还盖着，看不见）。
+    applyRemoteApiSitesFromCache();
+
     // 导入源：两个域都合并进 API_SITES，重复调用幂等（同 URL 不会重复登记）
     applyImportedSourcesFromCache();
 
@@ -314,6 +322,20 @@ export function refreshScopedSources(): void {
     // 设置页片段在 DOM 中时立刻重画；不在设置页就是空操作
     initAPICheckboxes();
     renderCustomAPIsList();
+
+    syncRemoteApiSites().then(function (changed) {
+        // Worker 端默认源可能刚更新：没手动选过源时按新配置补选一次
+        const defaultsChanged = applyRemoteDefaultsIfUnselected();
+        if (!(changed && changed.length) && !defaultsChanged) return;
+        if (typeof apiConfigWindow.__LELETV_REFRESH_API_CHECKBOXES__ === 'function') {
+            apiConfigWindow.__LELETV_REFRESH_API_CHECKBOXES__();
+        } else {
+            initAPICheckboxes();
+            renderCustomAPIsList();
+        }
+    }).catch(function (err) {
+        console.warn('换域后拉取远端数据源失败，继续使用缓存:', err);
+    });
 }
 
 // 刷新数据源

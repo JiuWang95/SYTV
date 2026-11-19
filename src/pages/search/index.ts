@@ -3,6 +3,7 @@
 import {
   HIDDEN_MODE_KEY,
   activeSourceFilter,
+  dispatchDomainChange,
   isHiddenContentMode,
   selectedAPIs,
   lastAllResults,
@@ -16,7 +17,7 @@ import {
 } from '../../core/state';
 import type { SearchFilterConfig } from '../../core/state';
 import { openMobileSearch, closeMobileSearch, importConfig, exportConfig } from '../../services/config';
-import { searchByAPIAndKeyWord } from '../../services/search';
+import { searchByAPIAndKeyWord, clearSearchCaches } from '../../services/search';
 import type { SearchResultItem } from '../../core/state';
 import {
   clearHistoryNavHighlight,
@@ -25,6 +26,7 @@ import {
   getActiveHistoryQuery,
   hideSearchHistory,
   navigateSearchHistory,
+  reloadSearchHistory,
   renderMobileSearchHistory,
   repositionSearchHistory,
   saveSearchHistory,
@@ -37,6 +39,7 @@ import {
   checkHiddenAPIsSelected,
   editCustomApi,
   removeCustomApi,
+  refreshScopedSources,
   resetDataSourceLogic,
   selectAllAPIs,
   showAddCustomApiForm,
@@ -46,7 +49,10 @@ import { exportVideoSources, importVideoSources } from '../../services/sources/p
 import { loadTmdbResults, openTmdbCategory, tmdbSearchVideo } from '../../services/tmdb';
 import { deleteHistoryItem, playFromHistory } from '../../services/viewing-history';
 import { buildPlayerBackUrl, navigateToPlayer, playDirectly } from '../../ui/player/bridge';
+import { refreshLayoutPrefs } from '../../ui/layout-pref';
 import { showToast, showLoading, hideLoading, showModal, clearLocalStorage } from '../../ui/toast';
+// 动态效果偏好（跟系统 / 强制开 / 强制关）：换域时若用户要求静止，就跳过后半段书写重播
+import { prefersReducedMotion } from '../../ui/motion-pref';
 import {
   _applySourceFilter,
   _buildSearchCardsHtml,
@@ -58,6 +64,13 @@ import {
 
 const SEARCH_CACHE_KEY = 'leletv_search_cache';
 const SEARCH_CACHE_MAX = 800; // 缓存结果条数上限（控制 sessionStorage 体积）
+// 与 router 里的 PARTICLE_SWEEP_KEY 同值（pages 不 import router，只能按字面量对齐）：
+// 换域不再重载后必须清掉它，否则下一次真正的重载会被误判成换场、跳过首屏书写。
+const PARTICLE_SWEEP_KEY = 'leletv_particle_sweep';
+
+// 换域流程（验密码 → 熄灯 → 换数据 → 重播启动层）进行中；期间再触发 change 一律忽略，
+// 否则两次换域会叠在一起，开关也会被两边的 release 交叉解锁。
+let domainSwapping = false;
 
 interface SearchLoadBalancer {
   apiStats: Map<string, { averageResponseTime?: number }>;
@@ -69,6 +82,13 @@ interface SearchPageWindow extends Window {
   __LELETV_BIND_SETTINGS_PAGE__?: () => void;
   INVITE_AUTH?: { isVerified: () => boolean };
   loadBalancer?: SearchLoadBalancer;
+  // 主题系统属于设置页 chunk（app 不 import 它，否则首屏闭包多拖 40KB），只能走 window 契约
+  LeLeThemeSystem?: { render?: () => void; applyThemeForDomain?: () => void };
+  // 启动层常驻后暴露的重播接口（见 src/index.html）：换域时用它重写招牌、再开灯
+  __LELETV_BOOT_SPLASH__?: {
+    replay: (onDone?: () => void) => boolean;
+    isRetired: () => boolean;
+  };
 }
 
 const searchPageWindow = window as SearchPageWindow;
@@ -220,6 +240,42 @@ function addCardRipple(el: HTMLElement, e: MouseEvent): void {
     }
 }
 
+// ---- 数据域切换（同文档换域）----
+// 旧实现是 location.reload()：整页重来，按域存档的东西天然按新域读。
+// 现在不重载，所有按域存档的状态都得在这里按顺序换过去，顺序错了就会读到旧域的数据。
+// 动效契约见 DESIGN.md「Motion」：420ms 熄灯 → 书写 880ms → 光 → 淡出，中途不爆光。
+
+// 熄灯之后、开灯之前：把数据域整个换过去（此时 localStorage 里的标记已是新值）
+function swapDomainData(wantHidden: boolean): void {
+    // 私密配色与主题都认 <html data-hidden-mode>（首帧脚本也按它取色），先落标记再重放主题
+    const root = document.documentElement;
+    if (wantHidden) root.setAttribute('data-hidden-mode', '1');
+    else root.removeAttribute('data-hidden-mode');
+
+    // 搜索缓存键不含数据域：不清会把私密域的结果直接返回给正常域（隐私泄漏）
+    clearSearchCaches();
+    // 页面级结果快照同样是上一个域的，清掉后回到搜索页不会"秒开"旧结果
+    setLastAllResults([]);
+    try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch (err) { /* 忽略 */ }
+    try { sessionStorage.removeItem(PARTICLE_SWEEP_KEY); } catch (err) { /* 忽略 */ }
+
+    // selectedAPIs / customAPIs / importedAPIs 都是模块级快照，按新域重读并重绘源列表
+    refreshScopedSources();
+
+    // 主题按域各存一套（leletv_theme_normal / leletv_theme_hidden），换了域要重放到 <html>
+    const theme = searchPageWindow.LeLeThemeSystem;
+    if (theme && typeof theme.applyThemeForDomain === 'function') theme.applyThemeForDomain();
+
+    // 首页布局偏好也按域存档（私密域默认关聚合动效与内容板块），换了域要重放
+    refreshLayoutPrefs();
+
+    // 历史下拉按新域重建（历史数据本身每次现读，这里换的是已经画出来的 DOM）
+    reloadSearchHistory();
+
+    // 最后广播：已渲染的其它模块（首页板块、历史页等）据此按新域重绘
+    dispatchDomainChange();
+}
+
 // 设置页开关绑定：幂等，可在片段插入前后重复调用。
 // 设置页标记已拆到 pages/settings.html，首屏 setupEventListeners 时元素还不存在，
 // 因此既在首屏尝试一次，也由 initSettingsPage 在片段插入后补一次。
@@ -229,13 +285,25 @@ function bindSettingsPageEvents() {
         hiddenModeToggle.dataset.leleBound = '1';
         hiddenModeToggle.checked = isHiddenContentMode();
         hiddenModeToggle.addEventListener('change', async function (e) {
-            const wantHidden = (e.target as HTMLInputElement).checked;
+            const input = e.target as HTMLInputElement;
+            // 换域期间（含验密码、换数据、重播启动层）再来一次就忽略，并把开关拨回当前真实域
+            if (domainSwapping) {
+                input.checked = isHiddenContentMode();
+                return;
+            }
+            const wantHidden = input.checked;
+            domainSwapping = true;
+            const release = function () {
+                domainSwapping = false;
+                input.disabled = false;
+            };
 
             // 进入隐藏域需要私密密码；退出回正常域不需要
             if (wantHidden) {
                 const isAdminVerified = await verifyAdminPassword();
                 if (!isAdminVerified) {
-                    (e.target as HTMLInputElement).checked = false;
+                    input.checked = false;
+                    release();
                     showToast('需要私密密码才能进入私密模式', 'warning');
                     return;
                 }
@@ -245,22 +313,43 @@ function bindSettingsPageEvents() {
                 localStorage.setItem(HIDDEN_MODE_KEY, wantHidden ? 'true' : 'false');
             } catch (err) {
                 console.error('切换私密模式失败:', err);
-                (e.target as HTMLInputElement).checked = !wantHidden;
+                input.checked = !wantHidden;
+                release();
                 return;
             }
 
-            // 数据域已切换：源/历史/自定义API都要按新域重新读取，重载最可靠
-            // 重载后停留在设置页（开关所在页），避免回落到默认首页
-            routerBridge.rememberPageForReload('settings');
-            // 不沿用上次搜索：清掉搜索结果缓存（否则重载或返回时会恢复旧域的结果页）
-            try { sessionStorage.removeItem(SEARCH_CACHE_KEY); } catch (err) { /* 忽略 */ }
             // 动效期间锁住开关，避免重复触发切换
-            (e.target as HTMLInputElement).disabled = true;
-            // 过渡动效：熄灯换场（收焦压暗 → 重载）→ 重载后启动层直接开灯、内容淡入
+            input.disabled = true;
+            const finish = function () {
+                release();
+                showToast(wantHidden ? '已进入私密模式' : '已回到正常模式', 'success');
+            };
+
+            // 熄灯结束（画面已暗、启动层马上盖上来）之后才换数据域：
+            // 换域是同步的几毫秒，藏在这一帧里，用户看不到源列表闪一下。
+            const settle = function () {
+                swapDomainData(wantHidden);
+                if (typeof routerBridge.restoreDomainSwitch === 'function') routerBridge.restoreDomainSwitch();
+
+                const splash = searchPageWindow.__LELETV_BOOT_SPLASH__;
+                const replayable = !!splash && typeof splash.replay === 'function'
+                    && typeof splash.isRetired === 'function' && splash.isRetired();
+                if (!replayable || prefersReducedMotion()) {
+                    finish();
+                    return;
+                }
+                // 重播启动层：书写 880ms → 点灯 → 淡出，这就是换场的后半段（开灯）。
+                // replay() 自身还会挡「启动层没退休 / 正在重播」，被挡时它不回调，
+                // 这里必须自己收尾，否则开关会一直锁着。
+                const started = splash.replay(finish);
+                if (!started) finish();
+            };
+
+            // 过渡动效：熄灯换场（收焦压暗），回调里换成同文档换域（不再 location.reload）
             if (typeof routerBridge.playDomainSwitch === 'function') {
-                routerBridge.playDomainSwitch(function () { window.location.reload(); });
+                routerBridge.playDomainSwitch(settle);
             } else {
-                window.location.reload();
+                settle();
             }
         });
     }

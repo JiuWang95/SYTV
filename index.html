@@ -30,9 +30,9 @@
          Worker 域名的 preconnect 在文件末尾的环境变量脚本里按需创建。 -->
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/libs/geist/Geist-Regular.woff2?v=v3.4.0">
     <!-- 播放页 bundle 的文件名（打包脚本会更新），结果页出来后用它预取播放页资源 -->
-    <meta name="leletv-player-bundle" content="dist/leletv-player.66UT4MEO.js">
+    <meta name="leletv-player-bundle" content="dist/leletv-player.5GPLIHSW.js">
     <!-- 非首页页面的按需 bundle（构建脚本会更新文件名） -->
-    <meta name="leletv-page-bundles" content='{"category":"dist/leletv-category.ZS6SLDZF.js","settings":"dist/leletv-settings.VMF44BHR.js"}'>
+    <meta name="leletv-page-bundles" content='{"category":"dist/leletv-category.J3D3HSTM.js","settings":"dist/leletv-settings.VMF44BHR.js"}'>
 
     <!-- PWA：添加到主屏/桌面后以独立窗口运行（无浏览器 UI） -->
     <!-- mobile-web-app-capable 为标准化写法（Chrome 已废弃 apple-* 前缀）；apple-* 保留以兼容 iOS Safari -->
@@ -57,15 +57,15 @@
          等于把整个 bundle 的下载推后一整段 HTML 解析时间。这里提前声明 modulepreload，
          让 JS 与 HTML/CSS 并行下载；执行位置仍由 body 末尾的 <script type="module"> 决定，行为不变。 -->
     <!-- #bundle-preload -->
-    <link rel="modulepreload" href="dist/leletv-core.76P6CBNG.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-WF3VK4AM.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-PVWTLHXQ.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/leletv-core.SFOJBS3C.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-HWPWPFJI.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-Z7URRTGG.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-C7ZP77W2.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-XG5U5KPF.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-MGHVVJIA.js?v=v4.2.6">
     <link rel="modulepreload" href="dist/chunks/chunk-DWOYCZYJ.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/leletv-app.DEWDQRTE.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-7XEC2R3A.js?v=v4.2.6">
-    <link rel="modulepreload" href="dist/chunks/chunk-6REZDYFB.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/leletv-app.HDLNOVIQ.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-LFBVMO3B.js?v=v4.2.6">
+    <link rel="modulepreload" href="dist/chunks/chunk-3OHTP4II.js?v=v4.2.6">
 
     <!-- Geist 字体：本地自托管（原先走 cdn.jsdelivr.net，跨境抖动会拖慢首屏；libs/* 命中长缓存） -->
     <style>
@@ -1388,8 +1388,8 @@
         window._jsSha256 = window.sha256;
     </script>
 
-    <script type="module" src="dist/leletv-core.76P6CBNG.js?v=v4.2.6"></script>
-    <script type="module" src="dist/leletv-app.DEWDQRTE.js?v=v4.2.6"></script>
+    <script type="module" src="dist/leletv-core.SFOJBS3C.js?v=v4.2.6"></script>
+    <script type="module" src="dist/leletv-app.HDLNOVIQ.js?v=v4.2.6"></script>
 
     <!-- 环境变量注入脚本 -->
     <script>

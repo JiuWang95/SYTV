@@ -441,6 +441,21 @@ export function playDomainSwitch(onDone?: () => void): void {
   }, SWITCH_OUT_MS + 900);
 }
 
+// 熄灯之后不再重载（同文档换域）时，用它把画面收回来：
+// 撤幕布、清掉 playDomainSwitch 打的内联过渡样式，免得设置页一直停在 0.22 的暗态。
+// 调用时机在启动层重新盖住画面之后，所以这一下"瞬间回亮"看不见。
+export function restoreDomainSwitch(): void {
+  var veil = document.querySelector('.domain-switch-veil');
+  if (veil && veil.parentNode) veil.parentNode.removeChild(veil);
+  _resetPanel();
+  var nav = document.querySelector('.top-nav-bar');
+  if (nav instanceof HTMLElement) {
+    nav.style.transition = '';
+    nav.style.opacity = '';
+    nav.style.filter = '';
+  }
+}
+
 // ===================== 通用：元素粒子消散（删除场景复用） =====================
 var DISSOLVE_ITEM_MS = 520;    // 单项删除的消散时长（比整页切换更快）
 var DISSOLVE_ITEM_RISE = 38;   // 单项删除的飘散高度基准（px）
@@ -1480,6 +1495,7 @@ Object.assign(window, {
   rememberPageForReload,
   playParticleDissolve,
   playDomainSwitch,
+  restoreDomainSwitch,
   dissolveThenRemove,
   playHomeIntro,
   isCategoryPageBlocked,
@@ -1532,6 +1548,7 @@ declare global {
     rememberPageForReload: (page: string) => void;
     playParticleDissolve: (onDone?: () => void) => void;
     playDomainSwitch: (onDone?: () => void) => void;
+    restoreDomainSwitch: () => void;
     clearSearchResidueFromUrl: (targetPage?: string) => void;
     dissolveThenRemove: (el: Element, action: () => void) => void;
     parseChangelogMarkdown: (md: string) => string;
